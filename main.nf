@@ -6,7 +6,10 @@ include { SAMTOOLS_FQ2BAM    } from './modules/local/samtools_fq2bam'
 include { SAMTOOLS_SORT      } from './modules/local/samtools_sort'
 include { BAM_RMDUP          } from './modules/local/bam_rmdup'
 include { SAMTOOLS_MPILEUP   } from './modules/local/samtools_mpileup'
-include { GET_VARIABLE_POSITIONS } from './modules/local/get_variable_positions'
+include { SAMTOOLS_MPILEUP_DEAM3  } from './modules/local/samtools_mpileup'
+include { GET_VARIABLE_POSITIONS  } from './modules/local/get_variable_positions'
+include { FILTER_BAM         } from './modules/local/filter_bam'
+include { MASK_DEAMINATION   } from './modules/local/mask_deamination'
 
 // load the files
 
@@ -112,5 +115,29 @@ tsv = SAMTOOLS_MPILEUP.out.tsv
 
 GET_VARIABLE_POSITIONS(tsv)
 ch_versions = ch_versions.mix(GET_VARIABLE_POSITIONS.out.versions.first())
+
+//
+// 6.Extract Deaminated Sequences
+//
+
+ch_for_deam3 = BEDTOOLS_INTERSECT.out.bam.combine(GET_VARIABLE_POSITIONS.out.tsv, by:0)
+
+FILTER_BAM(ch_for_deam3)
+
+//
+// 7.Mask Deamination for the pileup
+//
+
+MASK_DEAMINATION(FILTER_BAM.out.bam)
+
+//
+// 8. Pileup the deaminated reads
+//
+
+SAMTOOLS_MPILEUP_DEAM3(MASK_DEAMINATION.out.bam)
+
+//
+// 
+//
 
 }
