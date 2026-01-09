@@ -84,12 +84,14 @@ for haplogroup in tree.getElementsByTagName('haplogroup'):
     data.append([found_target, found_covered])
     # and add node-data for later overwriting of the stats for each node (including leaves)
     data.append([found_target, found_covered])
+    # add penalty-value for later updating
+    data.append(1)
     #create the tree
     parent_node = name_node_dict[parent]
     tmp = AnyNode(id=name, parent=parent_node, data=data)
     name_node_dict.update({name:tmp})
 
-# now summarize thats on each node
+# now summarize stats on each node
 for hap in PostOrderIter(node):
     #walk from the leaves up and count the number of successful (leave) haplogroups on each node:
     #thats what the PostOrderIter does
@@ -100,28 +102,52 @@ for hap in PostOrderIter(node):
     if len(hap.data) < 3:
         hap.data=[total_target, total_cov]
         continue # back to root
-    hap.data[2]=[total_target, total_cov]
+    # introduce a penalty for multiple nodes in a branch that are
+    # covered, but dont have the target allel
+    child_penalty = min(x.data[3] for x in hap.children)
+    if  hap.data[1][0] == 0:
+        penalty = child_penalty + 1
+    else:
+        penalty = 1
+
+    hap.data[3] = penalty
+    hap.data[2] = [total_target, total_cov]
+
+def print_header(file):
+    print('PhyloTree\tNodeCoverage\tPositionCoverage\tPenalty\tReadCoverage', file=file)
+
+def print_line(row, file):
+    print('\t'.join(
+            [
+                f"{row.pre.rstrip()} {row.node.id}",
+                f"{row.node.data[2][0]}/{row.node.data[2][1]}",
+                f"{row.node.data[1][0]}/{row.node.data[1][1]}",
+                f"{row.node.data[3]}",
+                f"{'; '.join(row.node.data[0])}"
+            ]
+        ), file=file
+    )
 
 # and print summary files
 rendered = list(RenderTree(node, style=AsciiStyle))
 
 # First, print stats for every haplogroup!
 with open(f"{prefix}.01_stats_all_groups.tsv", 'w') as tree1:
-    print('PhyloTree\tNodeCoverage\tPositionCoverage\tReadCoverage', file=tree1)
+    print_header(tree1)
     for row in rendered:
-        if len(row.node.data) == 3: #any node in the middle
-            print(f"{row.pre.rstrip()} {row.node.id}\t{row.node.data[2][0]}/{row.node.data[2][1]}\t{row.node.data[1][0]}/{row.node.data[1][1]}\t{','.join(row.node.data[0])}", file=tree1)
+        if len(row.node.data) > 2: #any node in the middle
+            print_line(row, tree1)
         else: # root
             print(f"{row.pre.rstrip()} {row.node.id}\t{row.node.data[0]}/{row.node.data[1]}\t\t", file=tree1)
 
 #Then, print only stats for nodes that have at least 1 hit
 with open(f"{prefix}.02_stats_all_groups_with_coverage.tsv", 'w') as tree2:    
-    print('PhyloTree\tNodeCoverage\tPositionCoverage\tReadCoverage', file=tree2)
+    print_header(tree2)
     for row in rendered:
         try:
             if row.node.data[2][0] == 0:
                 continue #filter applies here...
-            print(f"{row.pre.rstrip()} {row.node.id}\t{row.node.data[2][0]}/{row.node.data[2][1]}\t{row.node.data[1][0]}/{row.node.data[1][1]}\t{','.join(row.node.data[0])}", file=tree2)
+            print_line(row, tree2)
         except IndexError: # root
             print(f"{row.pre.rstrip()} {row.node.id}\t{row.node.data[0]}/{row.node.data[1]}\t\t", file=tree2)
 
@@ -130,7 +156,8 @@ with open(f"{prefix}.02_stats_all_groups_with_coverage.tsv", 'w') as tree2:
 best_node = AnyNode(id='mtMRCA', parent=None, data=node.data)
 
 def get_best_child(node, best_parent):
-    order = sorted(node.children, key=lambda x: x.data[2][0])
+    #The penalty is _really_ strong e.g. Penalty of 2 -> cut node-count in half 
+    order = sorted(node.children, key=lambda x: x.data[2][0]/x.data[3])
     try:
         best_child = order[-1]
         tmp = AnyNode(id=best_child.id, parent=best_parent, data=best_child.data)
@@ -143,11 +170,11 @@ get_best_child(node, best_node)
 best_path = list(RenderTree(best_node, style=AsciiStyle))
 
 with open(f"{prefix}.03_stats_best_path.tsv", 'w') as tree3:    
-    print('PhyloTree\tNodeCoverage\tPositionCoverage\tReadCoverage', file=tree3)
+    print_header(tree3)
     for row in best_path:
         try:
             if row.node.data[2][0] == 0:
                 continue #the last tip is random and could be empty...
-            print(f"{row.pre.rstrip()} {row.node.id}\t{row.node.data[2][0]}/{row.node.data[2][1]}\t{row.node.data[1][0]}/{row.node.data[1][1]}\t{','.join(row.node.data[0])}", file=tree3)
+            print_line(row, tree3)
         except IndexError: # root
             print(f"{row.pre.rstrip()} {row.node.id}\t{row.node.data[0]}/{row.node.data[1]}\t\t", file=tree3)
