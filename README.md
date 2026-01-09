@@ -32,6 +32,13 @@ The columns in the tables are
 - **Penalty:** If a node is not supported, the penalty shows the number of nodes that are skipped before reaching a supported child-node in the same branch. The higher the penalty, the more a branch is supported only by single hits in the tips, rather than by following the tree top-down
 - **ReadCoverage:** Shows for each _diagnostic position_ the number of sequences covering that position and the support for the diagnostic state in %.
 
+## Example
+
+An example for the 'best-path' file of data from an haplogroup individual (~3x genomic coverage in the deaminated sequences) can be found [here](assets/example_hapU.tsv)
+
+See the high penalty-values for the U-subgroups, indicating a better support for the ancestral node (U)
+
+
 ## Workflow
 
 1. Files are (re-)mapped to the RSRS (Reconstructed Sapiens Reference Sequence) with *BWA*
