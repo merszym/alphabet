@@ -9,7 +9,11 @@ import copy
 
 def check_position_coverage(poly, data, all_parent_positions=[]):
     def return_uncovered():
-        return 0,0,0
+        return 0,0,0, None
+
+    #if a position upstream was mutated, update the branch support here (+1 for support)
+    is_remutation = False
+
     # ignore insertions (maybe do that later...)
     if '.' in poly:
         return return_uncovered()
@@ -24,11 +28,15 @@ def check_position_coverage(poly, data, all_parent_positions=[]):
             return return_uncovered()
         target = pile.count(base) # on target
         perc = round((target/cov)*100, 2)
+
         if poly.endswith("!"): #a remutation
             # check, if the mutation is already represented in the branch leading here
             # e.g. 16311T in L3 --> 16311T! in several U subgroups
             if pos+base in all_parent_positions:
                 return return_uncovered()
+            elif any(x.startswith(pos) for x in all_parent_positions):
+                # e.g. 15301A in L3'4'5'6 is unsupported, but 15301G! in N is supported
+                is_remutation = True
 
     except KeyError:
         return return_uncovered()
@@ -36,7 +44,7 @@ def check_position_coverage(poly, data, all_parent_positions=[]):
     ## compare the poly with the mpileup_data to return coverage
     ##
     ##
-    return perc, target, cov
+    return perc, target, cov, is_remutation
 
 
 #
@@ -67,6 +75,10 @@ with open(pileup_path) as pileup_file:
 # create the anynode tree
 # create dictionaries to be filled during parsing
 raw_data = {
+    'branch_reads_support':0,
+    'branch_reads_covered':0,
+    'node_reads_support':0,
+    'node_reads_covered':0,
     'branch_positions_covered': 0,
     'branch_positions_support': 0,
     'node_positions_covered': 0,
@@ -102,7 +114,8 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
         'branch_positions_covered': parent_node.data['branch_positions_covered'], # later: add node covered on top 
         'branch_positions_support': parent_node.data['branch_positions_support'], # later: add node support on top
         'branch_positions': parent_node.data['branch_positions'].copy(), # later: add node_positions on top
-        # add accumulated read-support as extra column? 
+        'branch_reads_covered': parent_node.data['branch_reads_covered'], # later: add node reads covered on top
+        'branch_reads_support': parent_node.data['branch_reads_support'], # later: add node reads support on top
     })
 
     # Now parse all the positions (poly-tags) and update the dictionary
@@ -118,10 +131,15 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
                 data['branch_positions'].append(poly)
 
                 # now parse the positions and calculate coverage
-                perc, target, cov = check_position_coverage(poly, pileup_data, parent_node.data['branch_positions'])
+                perc, target, cov, mutation = check_position_coverage(poly, pileup_data, parent_node.data['branch_positions'])
 
-                parsed_poly = f"{poly} ({perc:.2f}% {target}/{cov})"
+                parsed_poly = f"{'**' if mutation else ''}{poly} ({perc:.2f}% {target}/{cov})"
                 data['node_positions_rendered'].append(parsed_poly)
+
+                data['node_reads_support'] += target
+                data['node_reads_covered'] += cov
+                data['branch_reads_support'] += target
+                data['branch_reads_covered'] += cov
 
                 if cov > 0:
                     data['node_positions_covered'] += 1
@@ -129,6 +147,7 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
                 if perc > 10:
                     data['node_positions_support'] += 1
                     data['branch_positions_support'] += 1
+                    data['branch_positions_support'] += mutation
 
     #add node to the tree
     tmp = AnyNode(id=name, parent=parent_node, data=data)
@@ -170,18 +189,20 @@ for hap in PostOrderIter(node):
 def print_header(file):
     print('\t'.join(
         [
-            'Haplogroup',
+            'Order',
             'Parent',
             'PhyloTree',
+            'Penalty',
             'BranchSupport',
             'BranchSupportPercent',
+            #'BranchSupportReads',
+            #'NodeReadSupport',
             'PositionSupport',
-            'Penalty',
-            'ReadSupport'
+            'SequenceSupport'
         ]
     ), file=file)
 
-def print_line(row, file):
+def print_line(row, file, n):
     if row.node.data['branch_positions_covered'] > 0:
         branch_support = row.node.data['branch_positions_support']/row.node.data['branch_positions_covered'] * 100
     else:
@@ -192,13 +213,15 @@ def print_line(row, file):
         parent = '-'
     print('\t'.join(
             [
-                row.node.id,
+                str(n),
                 parent,
                 f"{row.pre.rstrip()} {row.node.id}",
+                f"{row.node.data['penalty']}",
                 f"{row.node.data['branch_positions_support']}/{row.node.data['branch_positions_covered']}",
                 f"{branch_support:.2f}%",
+                # f"{row.node.data['branch_reads_support']}/{row.node.data['branch_reads_covered']}",
+                # f"{row.node.data['node_reads_support']}/{row.node.data['node_reads_covered']}",
                 f"{row.node.data['node_positions_support']}/{row.node.data['node_positions_covered']}",
-                f"{row.node.data['penalty']}",
                 f"{'; '.join(row.node.data['node_positions_rendered'])}"
             ]
         ), file=file
@@ -210,8 +233,8 @@ rendered = list(RenderTree(node, style=AsciiStyle))
 # First, print stats for every haplogroup!
 with open(f"{prefix}.tree_all_groups.tsv", 'w') as tree1:
     print_header(tree1)
-    for row in rendered:
-        print_line(row, tree1)
+    for n,row in enumerate(rendered, 1):
+        print_line(row, tree1, n)
 
 #Then, prune the tree, so that:
 # - nodes with less than 70% branch support are removed
@@ -229,7 +252,13 @@ for hap in PostOrderIter(node):
     if hap.data['branch_positions_covered'] > 0:
         branch_support = hap.data['branch_positions_support']/hap.data['branch_positions_covered'] * 100
     else:
-        branch_support = 0
+        continue
+        #
+        # if branch_positions_covered == 0, then we know that we are at the very top, but maybe not yet at the root.
+        # i.e. the very early positions (e.g. on L1'2'3'4'5'6) lack support. 
+        # We dont want the full tree to be cropped, so skip them! We basically start the tree at a lower node in this case :)
+        # 
+
 
     if branch_support < 70 or hap.data['penalty'] >= 4 or hap.data['penalty'] == -1:
         hap.parent = None
@@ -241,8 +270,8 @@ for hap in PostOrderIter(node):
 prune_rendered = list(RenderTree(node, style=AsciiStyle))
 with open(f"{prefix}.tree_70perc_support.tsv", 'w') as tree2:    
     print_header(tree2)
-    for row in prune_rendered:
-        print_line(row, tree2)
+    for n,row in enumerate(prune_rendered, 1):
+        print_line(row, tree2, n)
 
 #
 #
@@ -267,7 +296,7 @@ for hap in PostOrderIter(node):
     if hap.data['branch_positions_covered'] > 0:
         branch_support = hap.data['branch_positions_support']/hap.data['branch_positions_covered'] * 100
     else:
-        branch_support = 0
+        continue
 
     if branch_support < 70 or hap.data['penalty'] >= 3:
         hap.parent = None
@@ -279,5 +308,5 @@ for hap in PostOrderIter(node):
 tree3_render = list(RenderTree(node, style=AsciiStyle))
 with open(f"{prefix}.tree_70perc_support_3gaps.tsv", 'w') as tree3:    
     print_header(tree3)
-    for row in tree3_render:
-        print_line(row, tree3)
+    for n,row in enumerate(tree3_render, 1):
+        print_line(row, tree3, n)

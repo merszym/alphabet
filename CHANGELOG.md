@@ -1,3 +1,9 @@
+## v0.4 [12.01.2026]
+### Changes
+- Reformat parse_pylotree code (more readable and maintainable)
+- Use BranchSupport as a new filter-metric
+- Update the output-files (All Nodes, 70% Support, 70% Support + Max 3 Gaps)
+
 ## v0.3
 ### Changes
 - Call a position with ! (re-mutation) only as 'found', if the same position was not requested before. This is necessary, because they hit tip-positions way too often and accumulate hits in large branches. 

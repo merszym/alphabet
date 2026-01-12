@@ -20,27 +20,19 @@ NXF_VER=24.04.4 nextflow run merszym/haplotree --split INPUT-DIR
 ## Output
 
 The pipeline produces three files for each input-file (in `out/06_haplogroups/`):
-1. Summary statistics for each node in the tree (**Complete**)
-2. Summary statistics for the tree, but branches with penalty-values >=3 or 0% node support are pruned
-3. Summary statistics for a single 'best' path (**provides a quick look, which nodes are dominant**)
-    - Note: This is experimental! This 'best' path is often too simple and needs manual verification!
+1. Summary statistics for each node in the tree
+2. Filtered tree, showing only nodes with 70% branch-support or higher
+3. Filtered tree, showing only nodes with 70% branch-support or higher AND all branches removed that have 3 consecutive gaps (**Most confident!**)
 
-The columns in the tables are
+### Columns explained
 
+- **Parent**: The parent-haplogroup (because the tree is not easy to parse)
 - **PhyloTree:** The Haplogroup Relationship in PhyloTree 17
-- **NodeCoverage:** Accumulated values of the 'PositionCoverage' column in the full node subtree (sum of all children)
-- **PositionCoverage:** For all Haplogroup-defining positions, count the ones that share the diagnostic allel and the once covered by at least 1 read (see 'ReadCoverage'). E.g. 2/2 = 2 positions out of 2 share the haplogroup-defining state
-- **Penalty:** If a node is not supported, the penalty shows the closest distance to the a child-node with support in the same branch.
-- **ReadCoverage:** Shows for each _diagnostic position_ the number of sequences covering that position and the support for the diagnostic state in %.
-
-## Example
-
-An example for the 'best-path' file of data from an haplogroup individual (~3x genomic coverage in the deaminated sequences) can be found [here](assets/example_hapU.tsv). The interpretation:
-
-- High penalty-value (3) for the U8 subgroup indicates a better support for the ancestral node (U or U2'3'4'7'8'9)
-- The U8 is only supported by hits to K-positions
-- The detected 'K' and 'K1a4a1e' haplogroup positions are only supported by 'ancestral' positions (16311T! and 152!, see L2'3'4'5'6 and L3)
-
+- **Penalty:** The shortest distance to the a child-node with support. 0 if the node is supported, -1 if no children has support. 
+- **BranchSupport:** Accumulated PositionSupport in the branch 
+- **BranchSupportPercent:** Accumulated PositionSupport in the branch (in %)
+- **PositionSupport:** The number for haplogroup-defining positions that are covered by sequences and share the required state (see 'ReadCoverage')
+- **SequenceSupport:** Coverage support for each _diagnostic position_. Shows the number of sequences covering that position and support the diagnostic state.
 
 ## Workflow
 
