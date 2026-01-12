@@ -44,19 +44,40 @@ An example for the 'best-path' file of data from an haplogroup individual (~3x g
 
 ## Workflow
 
-1. Files are (re-)mapped to the RSRS (Reconstructed Sapiens Reference Sequence) with *BWA*
-    - Saved to: `out/01_bwa/`
-2. Files are filtered for mapping quality (25) and sorted using *samtools*
-3. PCR duplicates are removed with *bam-rmdup*
-    - Saved to `out/02_uniq`
-4. Sequences are removed that overlap low-complexity poly-c stretches in the mtDNA genome (positions 303-315, 513-576, 3565-3576 and 16184-16193) with *bedtools intersect*
-    - Saved to `out/03_bedfilter`
-5. Variable positions in the alignment are detected (positions, in which the RSRS-reference base has less than 50% support)
-    - Saved to `out/04_pielup`
-6. Sequences are extracted that have a C-to-T substitution in the first or last three bases (unless this subsitution is one of the defined variable positions)
-    - Saved to `05_deaminated`
-7. Set the mapping quality score of the first and last three T-bases to 0 (masking)
-8. Create a pileup-version of the files using `samtools`
-    - Saved to `05_deaminated`
-9. Walk through the PhyloTree-file and create thee different summary statistics for each node, based on the created pileup
-    - Saved to `06_haplogroups`
+### 1. Mapping with BWA
+
+Files are (re-)mapped to the RSRS (Reconstructed Sapiens Reference Sequence) with *BWA* and saved to `out/01_bwa/`
+
+
+### 2. Filter Alignment
+Files are filtered for minimum mapping quality (25) and minimum length (35). Then the alignment is sorted using *samtools*
+
+### 3. Duplicate Removal
+
+PCR duplicates are removed with *bam-rmdup* and saved to `out/02_uniq/`
+
+### 4. Remove Poly-C Stretches
+
+Sequences are removed from the alignment that overlap low-complexity poly-c stretches (positions 303-315, 513-576, 3565-3576 and 16184-16193) with *bedtools intersect*. These poly-c stretches can introduce face C-to-T deamination patterns, e.g.: ![](assets/img/poly_c_stretches.png).
+
+The filtered alignment is saved to `out/03_bedfilter/`
+
+### 5. Mask variable positions 
+
+Variable positions can cause C-to-T differences in the first and last 3 bases because of haplogroup differences, rather than DNA damage. Example: ![](assets/img/variable_positions.png)
+
+Positions in the alignment are masked if the majority of sequences (but at least 2 sequences) shows a differenct base than the reference.
+
+The pileup and the extracted positions are saved to `out/04_pileup/`. The positions are only masked for the extraction of deaminated sequences.
+
+### 6. Extract deaminated sequences
+
+Sequences are extracted that have a C-to-T substitution in the first or last three bases (unless this subsitution is one of the masked positions). Deaminated sequences are saved to `05_deaminated/`
+
+### 7. Mask first and last three bases 
+
+Set the mapping quality score of the first and last three T-bases of all deaminated sequences to 0. They are ignored in the phylotree-analysis
+
+### 8. Haplogroup Statistics
+
+Walk through the PhyloTree-file and create summary statistics for each haplogroup node. The resulting tables are saved to   `06_haplogroups/`
