@@ -3,6 +3,7 @@
 - Reformat parse_pylotree code (more readable and maintainable)
 - Use BranchSupport as a new filter-metric
 - Update the output-files (All Nodes, 70% Support, 70% Support + Max 3 Gaps)
+- Add MIT LICENSE
 
 ## v0.3
 ### Changes
