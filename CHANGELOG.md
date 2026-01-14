@@ -1,3 +1,11 @@
+
+## v0.5 [14.01.2026]
+### Changes
+- Add the `RequiredGaps` column in the summary that, looking back, counts how many intermediate nodes were skipped to get there
+    (different to the `Penalty` column that looks forward to the closest child)
+- introduce the `--max_gaps` and `--min_support` flags to filter the tree based on the BranchSupport and the RequiredGaps columns
+
+
 ## v0.4 [12.01.2026]
 ### Changes
 - Reformat parse_pylotree code (more readable and maintainable)

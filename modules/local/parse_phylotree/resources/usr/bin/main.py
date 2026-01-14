@@ -55,6 +55,8 @@ def check_position_coverage(poly, data, all_parent_positions=[]):
 xml_path = sys.argv[1]
 pileup_path = sys.argv[2]
 prefix = sys.argv[3]
+min_support = float(sys.argv[4])
+max_gaps = int(sys.argv[5])
 
 # open XML file
 with open(xml_path) as xml_file:
@@ -86,7 +88,8 @@ raw_data = {
     'branch_positions': [],
     'node_positions': [], #only positions from this haplogroup node
     'node_positions_rendered': [], #node_positions, but including the read coverage statistics
-    'penalty':-1 #for branches at the leaves, update later
+    'penalty':-1, #for branches at the leaves, update later
+    'gaps_required':0 # how many intermediate nodes were skipped to come here 
 }
 
 node = AnyNode(id='mtMRCA', parent=None, data=raw_data.copy())
@@ -110,12 +113,16 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
 
     # Add the data-dict for the current haplogroup node
     data = copy.deepcopy(raw_data)
+    # check if the parent has position-support:
+    parent_support = parent_node.data['node_positions_support'] > 0
+    
     data.update({
         'branch_positions_covered': parent_node.data['branch_positions_covered'], # later: add node covered on top 
         'branch_positions_support': parent_node.data['branch_positions_support'], # later: add node support on top
         'branch_positions': parent_node.data['branch_positions'].copy(), # later: add node_positions on top
         'branch_reads_covered': parent_node.data['branch_reads_covered'], # later: add node reads covered on top
         'branch_reads_support': parent_node.data['branch_reads_support'], # later: add node reads support on top
+        'gaps_required':0 if parent_support else parent_node.data['gaps_required'] + 1
     })
 
     # Now parse all the positions (poly-tags) and update the dictionary
@@ -193,6 +200,7 @@ def print_header(file):
             'Parent',
             'PhyloTree',
             'Penalty',
+            'RequiredGaps',
             'BranchSupport',
             'BranchSupportPercent',
             #'BranchSupportReads',
@@ -217,6 +225,7 @@ def print_line(row, file, n):
                 parent,
                 f"{row.pre.rstrip()} {row.node.id}",
                 f"{row.node.data['penalty']}",
+                f"{row.node.data['gaps_required']}",
                 f"{row.node.data['branch_positions_support']}/{row.node.data['branch_positions_covered']}",
                 f"{branch_support:.2f}%",
                 # f"{row.node.data['branch_reads_support']}/{row.node.data['branch_reads_covered']}",
@@ -236,10 +245,12 @@ with open(f"{prefix}.tree_all_groups.tsv", 'w') as tree1:
     for n,row in enumerate(rendered, 1):
         print_line(row, tree1, n)
 
+
+
 #Then, prune the tree, so that:
-# - nodes with less than 70% branch support are removed
+# - nodes with less than min-support branch support are removed
 # - nodes with 0 coverage are removed
-# - nodes with penalty 4 or more are removed (actually, this is now mostly driven by the branch support...)
+# - nodes with penalty max-gaps or more are removed (actually, this is now mostly driven by the branch support...)
 # 
 # iterate through the tree and set all parents to None if these conditions apply
 
@@ -259,46 +270,7 @@ for hap in PostOrderIter(node):
         # We dont want the full tree to be cropped, so skip them! We basically start the tree at a lower node in this case :)
         # 
 
-
-    if branch_support < 70 or hap.data['penalty'] >= 4 or hap.data['penalty'] == -1:
-        hap.parent = None
-    
-    # if a node was filtered because of too little support, also remove unsupported intermediate nodes
-    if hap.data['node_positions_support'] == 0 and len(hap.children)==0:
-        hap.parent = None
-
-prune_rendered = list(RenderTree(node, style=AsciiStyle))
-with open(f"{prefix}.tree_70perc_support.tsv", 'w') as tree2:    
-    print_header(tree2)
-    for n,row in enumerate(prune_rendered, 1):
-        print_line(row, tree2, n)
-
-#
-#
-# Do the same thing again, but now for 80% support and 3 gaps only
-#
-#
-
-
-#Then, prune the tree, so that:
-# - nodes with less than 70% branch support are removed
-# - nodes with 0 coverage are removed
-# - nodes with penalty 4 or more are removed (actually, this is now mostly driven by the branch support...)
-# 
-# iterate through the tree and set all parents to None if these conditions apply
-
-for hap in PostOrderIter(node):
-    #walk from the leaves up and count the number of successful (leave) haplogroups on each node:
-    #thats what the PostOrderIter does
-    if hap.id == 'mtMRCA':
-        continue # root
-    
-    if hap.data['branch_positions_covered'] > 0:
-        branch_support = hap.data['branch_positions_support']/hap.data['branch_positions_covered'] * 100
-    else:
-        continue
-
-    if branch_support < 70 or hap.data['penalty'] >= 3:
+    if branch_support < min_support or hap.data['gaps_required'] > max_gaps:
         hap.parent = None
     
         # if a node was filtered because of too little support, also remove unsupported intermediate nodes
@@ -306,7 +278,7 @@ for hap in PostOrderIter(node):
         hap.parent = None
 
 tree3_render = list(RenderTree(node, style=AsciiStyle))
-with open(f"{prefix}.tree_70perc_support_3gaps.tsv", 'w') as tree3:    
+with open(f"{prefix}.tree_{min_support}perc_{max_gaps}gaps.tsv", 'w') as tree3:    
     print_header(tree3)
     for n,row in enumerate(tree3_render, 1):
         print_line(row, tree3, n)

@@ -10,7 +10,8 @@ process SUMMARIZE_PHYLOTREE{
     tuple val(meta), path("*.tsv"), emit: tsv
 
     script:
+    def args = task.ext.args
     """
-    main.py ${xml} ${pileup} ${meta.id}
+    main.py ${xml} ${pileup} ${meta.id} $args
     """
 }
