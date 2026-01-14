@@ -16,15 +16,19 @@ The input for ALPHABET is a folder with BAM-files. These BAM-files should contai
 
 ALPHABET maps these sequences to the RSRS, extracts deaminated sequences (based on C-to-T damage) and creates summary statistics for each Haplogroup-Node in the PhyloTree 17 release (see workflow section below).
 
+### flags
+
+```
+--split          DIR     Directory containing BAM-files with human mtDNA sequences
+--min_support    N       filter haplogroup branches below support of N (default: 70)
+--max_gaps       N       filter haplogroup branches with N intermediate unsupported (or missing) gaps (default: 3)
+```
+
+
 ### quickstart
 
 (Work in Progress)
 
-Run alphabet:
-
-```
-nextflow run merszym/alphabet --split split
-```
 
 ## Output
 
@@ -37,6 +41,7 @@ The pipeline produces three files for each input-file (in `out/06_haplogroups/`)
 
 - **Parent**: The parent-haplogroup (because the tree is not easy to parse)
 - **PhyloTree:** The Haplogroup Relationship in PhyloTree 17
+- **GapsRequired:** The amount of intermediate haplogroups skipped (since the last supported haplogroup) to get to here 
 - **Penalty:** The shortest distance to the a child-node with support. 0 if the node is supported, -1 if no children has support. 
 - **BranchSupport:** Accumulated PositionSupport in the branch 
 - **BranchSupportPercent:** Accumulated PositionSupport in the branch (in %)

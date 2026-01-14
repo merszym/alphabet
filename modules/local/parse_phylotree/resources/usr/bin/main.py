@@ -261,7 +261,14 @@ for hap in PostOrderIter(node):
         continue # root
     
     if hap.data['branch_positions_covered'] > 0:
-        branch_support = hap.data['branch_positions_support']/hap.data['branch_positions_covered'] * 100
+        branch_support = hap.data['branch_positions_support']/hap.data['branch_positions_covered'] * 100   
+
+        # the tree should not be filtered, if the distance to the root is larger than the max-gap...
+        # because the gaps are the intermediate missing nodes...
+        # so ignore it at the beginning of the tree
+        if hap.data['branch_positions_support'] == hap.data['node_positions_support'] and hap.data['branch_positions_covered'] == hap.data['node_positions_covered']:
+            continue
+
     else:
         continue
         #
