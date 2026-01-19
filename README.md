@@ -115,22 +115,22 @@ This repository includes the RSRS-based PhyloTree17 XML-file provided under MIT 
 Neanderthal mtDNA Haplogroups were added to the PhyloTree XML file. The Nomenclature and diagnostic positions follow [Andreeva et al. 2022](https://www.nature.com/articles/s41598-022-16164-9)
 
 <pre>
-NEANDERTAL
-|-- NA1                                          Hohensteil-Stadel
+NEANDERTAL                                       Neanderthal-Eve
+|-- NA1                                          Hohenstein-Stadel (HST)
 +-- NA2
-    |-- NE                                       Early Neanderthals - Altai, Denisova 15
+    |-- NE                                       Early Neanderthal Clades (Altai, Denisova15)
     +-- NA2a
-        |-- NM                                   Medium Neanderthals
-        |   |-- NM1                              Forbes Quarry
-        |   |   +-- NM1a                         Stajnija S5000
-        |   +-- NM2                              Mezmaiskaya 3
-        +-- NL                                   Late Neanderthals
-            |-- NL2                              Les Cottes Z4-1514
-            +-- NL1                              El Sidron
+        |-- NM                                   Middle Neanderthal Clades
+        |   |-- NM1                                  Forbes Quarry
+        |   |   +-- NM1a                             Stajnija S5000
+        |   +-- NM2                                  Mezmaiskaya 3
+        +-- NL                                   Late Neanderthal Clades (Chagyrskaya, Denisova11)
+            |-- NL2                                  Les Cottes Z4-1514
+            +-- NL1                                  El Sidron, Feldhofer2
                 +-- NL1a
-                    |-- NL1a1                    Feldhofer 1
+                    |-- NL1a1                        Feldhofer 1
                     +-- NL1a2
-                        |-- NL1a2a               Vindija 33.16
-                        +-- NL1a2b               Spy-94a
-                            +-- NL1a2b1          Goyet
+                        |-- NL1a2a                   Vindija 33.16
+                        +-- NL1a2b                   Spy-94a
+                            +-- NL1a2b1              Goyet
 </pre>
