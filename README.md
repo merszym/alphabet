@@ -107,5 +107,30 @@ Set the mapping quality score of the first and last three T-bases of all deamina
 Walk through the PhyloTree-file and create summary statistics for each haplogroup node. The resulting tables are saved to   `06_haplogroups/`
 
 # Resources
+## Human mtDNA Haplogroups
 
 This repository includes the RSRS-based PhyloTree17 XML-file provided under MIT License by the [Institute of Genetic Epidemiology, Insbruck](https://github.com/genepi/phylotree-rsrs-17/blob/main/src/tree.xml)
+
+## Neanderthal mtDNA Haplogroups
+Neanderthal mtDNA Haplogroups were added to the PhyloTree XML file. The Nomenclature and diagnostic positions follow [Andreeva et al. 2022](https://www.nature.com/articles/s41598-022-16164-9)
+
+<pre>
+NEANDERTAL
+|-- NA1                                          Hohensteil-Stadel
++-- NA2
+    |-- NE                                       Early Neanderthals - Altai, Denisova 15
+    +-- NA2a
+        |-- NM                                   Medium Neanderthals
+        |   |-- NM1                              Forbes Quarry
+        |   |   +-- NM1a                         Stajnija S5000
+        |   +-- NM2                              Mezmaiskaya 3
+        +-- NL                                   Late Neanderthals
+            |-- NL2                              Les Cottes Z4-1514
+            +-- NL1                              El Sidron
+                +-- NL1a
+                    |-- NL1a1                    Feldhofer 1
+                    +-- NL1a2
+                        |-- NL1a2a               Vindija 33.16
+                        +-- NL1a2b               Spy-94a
+                            +-- NL1a2b1          Goyet
+</pre>
