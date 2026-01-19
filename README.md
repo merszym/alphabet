@@ -29,21 +29,24 @@ ALPHABET maps these sequences to the RSRS, extracts deaminated sequences (based 
 
 (Work in Progress)
 
-
 ## Output
 
 The pipeline produces three files for each input-file (in `out/06_haplogroups/`):
-1. Summary statistics for each node in the tree
-2. Filtered tree, showing only nodes with 70% branch-support or higher
-3. Filtered tree, showing only nodes with 70% branch-support or higher AND all branches removed that have 3 consecutive gaps (**Most confident!**)
+1. Full table for each node in the tree (`NAME.raw.tsv`)
+2. Filtered table, showing the path to haplogroups with the lowest penalty (`NAME.best.tsv`)
+3. Filtered table, showing only nodes with >=70% branch-support AND <= 3 consequtive gaps (`NAME.70.0perc_3gaps.tsv`)
 
 ### Columns explained
 
-- **Parent**: The parent-haplogroup (because the tree is not easy to parse)
+- **Order**: An incrementing number to indicate the original order of the table
+- **Parent**: The parent-haplogroup (for custom parsing)
 - **PhyloTree:** The Haplogroup Relationship in PhyloTree 17
-- **GapsRequired:** The amount of intermediate haplogroups skipped (since the last supported haplogroup) to get to here 
-- **Penalty:** The shortest distance to the a child-node with support. 0 if the node is supported, -1 if no children has support. 
+- **Penalty:** Lowest Penalty is the best supported node in the tree. Calculated as `SumOfGaps` + `TotalMismatch` + `DistanceToBest` 
+- **RequiredGaps:** The number of intermediate haplogroups skipped (since the last supported haplogroup) to get to here 
+- **SumOfGaps:** The number of skipped intermediate haplogroups in the full branch to get here
 - **BranchSupport:** Accumulated PositionSupport in the branch 
+- **TotalMismatch:** Absolute number of mismatches in the branch support (covered minus supported branch positions)
+- **DistanceToBest:** The difference between the highest number of supported positions in any branch and the supported branch positions on that node.
 - **BranchSupportPercent:** Accumulated PositionSupport in the branch (in %)
 - **PositionSupport:** The number for haplogroup-defining positions that are covered by sequences and share the required state (see 'ReadCoverage')
 - **SequenceSupport:** Coverage support for each _diagnostic position_. Shows the number of sequences covering that position and support the diagnostic state.

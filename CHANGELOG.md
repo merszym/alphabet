@@ -1,5 +1,12 @@
 ## v0.6 [WIP]
-- add 'Mismatch' column
+### Changes
+- add `TotalMismatch` column, indicating the total number of mismatches in the branch support between covered and supported positions
+- add `SumOfGaps` column, that shows the accumulated number of gaps in this branch
+- add `DistanceToBest` column that shows the difference of supported branch positions to the maximum number of supported positions in any branch
+- update the `Penalty` column to show `SumOfGaps` + `TotalMismatch` + `DistanceToBest`
+- Rename (and add) output tree-tables
+    - rename the full table from `all_groups` to `raw` 
+    - add a table that shows the path to the nodes with the best two (minimum) penalty scores (`best`)
 
 ## v0.5 [14.01.2026]
 ### Changes

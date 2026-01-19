@@ -171,10 +171,15 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
     name_node_dict.update({name:tmp})   
 
 # now summarize stats on each node
+min_penalty = 1000
+
 for hap in PostOrderIter(node):
     # The penalty is used to get the best supported node. The smaller, the better
     
     hap.data['penalty'] = hap.data['sum_of_gaps'] + (max_support - hap.data['branch_positions_support']) + (hap.data['branch_positions_covered'] - hap.data['branch_positions_support'])
+    
+    if hap.data['penalty'] < min_penalty:
+        min_penalty = hap.data['penalty']
 
 def print_header(file):
     print('\t'.join(
@@ -215,8 +220,6 @@ def print_line(row, file, n):
                 f"{row.node.data['branch_positions_covered'] - row.node.data['branch_positions_support']}",
                 f"{max_support - row.node.data['branch_positions_support']}",
                 f"{branch_support:.2f}%",
-                # f"{row.node.data['branch_reads_support']}/{row.node.data['branch_reads_covered']}",
-                # f"{row.node.data['node_reads_support']}/{row.node.data['node_reads_covered']}",
                 f"{row.node.data['node_positions_support']}/{row.node.data['node_positions_covered']}",
                 f"{'; '.join(row.node.data['node_positions_rendered'])}"
             ]
@@ -227,12 +230,35 @@ def print_line(row, file, n):
 rendered = list(RenderTree(node, style=AsciiStyle))
 
 # First, print stats for every haplogroup!
-with open(f"{prefix}.tree_all_groups.tsv", 'w') as tree1:
+with open(f"{prefix}.raw.tsv", 'w') as tree1:
     print_header(tree1)
     for n,row in enumerate(rendered, 1):
         print_line(row, tree1, n)
 
+# print the best tree (output all nodes with the two lowest penalties)
 
+from anytree.search import findall, find
+
+# find the nodes that have the lowest penalty (lowest two for now)
+best_nodes = findall(node, filter_ = lambda node: any([node.data['penalty']==x for x in range(min_penalty, min_penalty+2)]))
+keep = []
+for _best_node in best_nodes:
+    keep.extend([x.id for x in _best_node.path])
+
+# now copy the full tree and filter it for rendering
+best_tree = copy.deepcopy(node)
+for hap in PostOrderIter(best_tree):
+    # eliminate all nodes that are not in the best_nodes
+    if hap.id in keep:
+        continue
+    else:
+        hap.parent = None
+
+tree2_render = list(RenderTree(best_tree, style=AsciiStyle))
+with open(f"{prefix}.best.tsv", 'w') as tree2:    
+    print_header(tree2)
+    for n,row in enumerate(tree2_render, 1):
+        print_line(row, tree2, n)
 
 #Then, prune the tree, so that:
 # - nodes with less than min-support branch support are removed
@@ -249,7 +275,6 @@ for hap in PostOrderIter(node):
     
     if hap.data['branch_positions_covered'] > 0:
         branch_support = hap.data['branch_positions_support']/hap.data['branch_positions_covered'] * 100   
-
         # the tree should not be filtered, if the distance to the root is larger than the max-gap...
         # because the gaps are the intermediate missing nodes...
         # so ignore it at the beginning of the tree
@@ -272,7 +297,7 @@ for hap in PostOrderIter(node):
         hap.parent = None
 
 tree3_render = list(RenderTree(node, style=AsciiStyle))
-with open(f"{prefix}.tree_{min_support}perc_{max_gaps}gaps.tsv", 'w') as tree3:    
+with open(f"{prefix}.{min_support}perc_{max_gaps}gaps.tsv", 'w') as tree3:    
     print_header(tree3)
     for n,row in enumerate(tree3_render, 1):
         print_line(row, tree3, n)
