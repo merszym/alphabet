@@ -29,25 +29,41 @@ ALPHABET maps these sequences to the RSRS, extracts deaminated sequences (based 
 
 (Work in Progress)
 
-## Output
+## Output files
 
-The pipeline produces three files for each input-file (in `out/06_haplogroups/`):
+The alphabet output tells you which parts of the mtDNA haplogroup phylogeny are most compatible with the data, and why. It produces three files for each input-file (NAME) (in `out/06_haplogroups/`):
+
 1. Full table for each node in the tree (`NAME.raw.tsv`)
 2. Filtered table, showing the path to haplogroups with the lowest penalty (`NAME.best.tsv`)
 3. Filtered table, showing only nodes with >=70% branch-support AND <= 3 consequtive gaps (`NAME.70.0perc_3gaps.tsv`)
 
-### Columns explained
 
-- **Order**: An incrementing number to indicate the original order of the table
-- **Parent**: The parent-haplogroup (for custom parsing)
-- **PhyloTree:** The Haplogroup Relationship in PhyloTree 17
-- **Penalty:** Lowest Penalty is the best supported node in the tree. Calculated as `SumOfGaps` + `TotalMismatch` + `DistanceToBest` 
-- **RequiredGaps:** The number of intermediate haplogroups skipped (since the last supported haplogroup) to get to here 
-- **SumOfGaps:** The number of skipped intermediate haplogroups in the full branch to get here
-- **BranchSupport:** Accumulated PositionSupport in the branch 
-- **TotalMismatch:** Absolute number of mismatches in the branch support (covered minus supported branch positions)
-- **DistanceToBest:** The difference between the highest number of supported positions in any branch and the supported branch positions on that node.
-- **BranchSupportPercent:** Accumulated PositionSupport in the branch (in %)
+`NAME.raw.tsv`
+
+Full table containing all haplogroup nodes in PhyloTree 17 (unfiltered) and the coverage stats.
+
+`NAME.best.tsv`
+Filtered table showing the path(s) through the tree with the lowest overall penalty, representing the best-supported haplogroup branches.
+
+`NAME.70.0perc_3gaps.tsv`
+This file corresponds to the default filtering thresholds and is intended for manual inspection of other supported branches.
+The table shows only haplogroup nodes that:
+    - Have ≥ 70% accumulated branch support, and
+    - Contain ≤ 3 consecutive unsupported (or missing) intermediate nodes
+
+
+### Column description
+
+- **Order**: Incrementing index reflecting the original row order in the table.
+- **Parent**: The immediate parent haplogroup of the node (useful for custom parsing or tree reconstruction).
+- **PhyloTree:** The haplogroup path as defined in PhyloTree 17.
+- **Penalty:** Score used to find the `best` nodes. Lower values show better supported branches. Calculated as `SumOfGaps` + `TotalMismatch` + `DistanceToBest` 
+- **RequiredGaps:** Number of intermediate haplogroup nodes skipped **since the last supported node** on the branch.
+- **SumOfGaps:** Total number of skipped intermediate haplogroup nodes along the entire branch from the root to this node.
+- **BranchSupport:** Accumulated number of supported haplogroup-defining positions along the branch. 
+- **TotalMismatch:** Absolute number of mismatches along the branch (covered diagnostic positions minus supported positions). Used to calculate Penalty.
+- **DistanceToBest:** The maximum number of supported positions observed in any branch minus the number of supported positions accumulated up to this node. Indicates missing unexplained variation in the branch and is used to calculate the Penalty. 
+- **BranchSupportPercent:** Accumulated branch support (as percentage).
 - **PositionSupport:** The number for haplogroup-defining positions that are covered by sequences and share the required state (see 'ReadCoverage')
 - **SequenceSupport:** Coverage support for each _diagnostic position_. Shows the number of sequences covering that position and support the diagnostic state.
 

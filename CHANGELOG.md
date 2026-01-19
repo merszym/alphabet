@@ -1,4 +1,4 @@
-## v0.6 [WIP]
+## v0.6 [19.01.2026]
 ### Changes
 - add `TotalMismatch` column, indicating the total number of mismatches in the branch support between covered and supported positions
 - add `SumOfGaps` column, that shows the accumulated number of gaps in this branch
