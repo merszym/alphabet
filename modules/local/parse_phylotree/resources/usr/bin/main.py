@@ -83,7 +83,7 @@ raw_data = {
     'node_reads_covered':0,
     'branch_positions_covered': 0,
     'branch_positions_support': 0,
-    'branch_gap_sum':0,
+    'sum_of_gaps':0,
     'node_positions_covered': 0,
     'node_positions_support': 0,
     'branch_positions': [],
@@ -95,6 +95,7 @@ raw_data = {
 
 node = AnyNode(id='mtMRCA', parent=None, data=raw_data.copy())
 name_node_dict = {'mtMRCA':node}
+max_support = 0
 
 # walk through the XML and fill the anynode-tree
 for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
@@ -124,6 +125,7 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
         'branch_reads_covered': parent_node.data['branch_reads_covered'], # later: add node reads covered on top
         'branch_reads_support': parent_node.data['branch_reads_support'], # later: add node reads support on top
         'gaps_required':0 if parent_support else parent_node.data['gaps_required'] + 1,
+        'sum_of_gaps': parent_node.data['sum_of_gaps']
     })
 
     # Now parse all the positions (poly-tags) and update the dictionary
@@ -156,6 +158,13 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
                     data['node_positions_support'] += 1
                     data['branch_positions_support'] += 1
                     data['branch_positions_support'] += mutation
+    
+    if data['node_positions_support'] == 0:
+        data['sum_of_gaps'] += 1
+
+    if data['branch_positions_support'] > max_support:
+        max_support = data['branch_positions_support']
+
 
     #add node to the tree
     tmp = AnyNode(id=name, parent=parent_node, data=data)
@@ -163,36 +172,9 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
 
 # now summarize stats on each node
 for hap in PostOrderIter(node):
-    #walk from the leaves up and set the penalty 
-    if hap.data['node_positions_support'] != 0:
-        hap.data['penalty'] = 0
-        continue
-    if hap.id == 'mtMRCA': # root
-        hap.data['penalty'] = 0
-        continue
-
-    # introduce the penalty for nodes in a branch so that
-    # covered, but dont have the target allel
-    #   Tree                       Branch   Position  Penalty
-    #  +-- L1c3b'c                 0/1      0/1       3 (Distance to covered tip
-    #      |-- L1c3b               0/3      0/2       2 (Distance to covered tip)
-    #      |   |-- L1c3b1          0/6      0/3       1 (Distance to covered tip)
-    #      |   |   |-- L1c3b1a     1/8      1/2       0 (Tip)
-    #      |   |   +-- L1c3b1b     0/8      0/2       -1 (Tip)
-    #      |   +-- L1c3b2          0/10     0/7       -1 (Tip)
-    #      +-- L1c3c               0/10     0/9       -1 (Tip)
-    #
-    # For each node, get the minimum Penalty from the children
-    # keep -1 if -1 else add plus 1
-    try:
-        # check if a children exists that doesnt have -1 as penalty
-        child_penalty = min(x.data['penalty'] for x in hap.children if x.data['penalty'] != -1)
-    except:
-        # keep the penalty at -1
-        # set to -2, so that adding 1 makes it -1 again :D
-        child_penalty = -2
-        
-    hap.data['penalty'] = child_penalty + 1
+    # The penalty is used to get the best supported node. The smaller, the better
+    
+    hap.data['penalty'] = hap.data['sum_of_gaps'] + (max_support - hap.data['branch_positions_support']) + (hap.data['branch_positions_covered'] - hap.data['branch_positions_support'])
 
 def print_header(file):
     print('\t'.join(
@@ -202,11 +184,11 @@ def print_header(file):
             'PhyloTree',
             'Penalty',
             'RequiredGaps',
+            'SumOfGaps',
             'BranchSupport',
-            'Mismatch',
+            'TotalMismatch',
+            'DistanceToBest',
             'BranchSupportPercent',
-            #'BranchSupportReads',
-            #'NodeReadSupport',
             'PositionSupport',
             'SequenceSupport'
         ]
@@ -228,8 +210,10 @@ def print_line(row, file, n):
                 f"{row.pre.rstrip()} {row.node.id}",
                 f"{row.node.data['penalty']}",
                 f"{row.node.data['gaps_required']}",
+                f"{row.node.data['sum_of_gaps']}",
                 f"{row.node.data['branch_positions_support']}/{row.node.data['branch_positions_covered']}",
                 f"{row.node.data['branch_positions_covered'] - row.node.data['branch_positions_support']}",
+                f"{max_support - row.node.data['branch_positions_support']}",
                 f"{branch_support:.2f}%",
                 # f"{row.node.data['branch_reads_support']}/{row.node.data['branch_reads_covered']}",
                 # f"{row.node.data['node_reads_support']}/{row.node.data['node_reads_covered']}",
