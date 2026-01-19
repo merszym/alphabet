@@ -83,6 +83,7 @@ raw_data = {
     'node_reads_covered':0,
     'branch_positions_covered': 0,
     'branch_positions_support': 0,
+    'branch_gap_sum':0,
     'node_positions_covered': 0,
     'node_positions_support': 0,
     'branch_positions': [],
@@ -122,7 +123,7 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
         'branch_positions': parent_node.data['branch_positions'].copy(), # later: add node_positions on top
         'branch_reads_covered': parent_node.data['branch_reads_covered'], # later: add node reads covered on top
         'branch_reads_support': parent_node.data['branch_reads_support'], # later: add node reads support on top
-        'gaps_required':0 if parent_support else parent_node.data['gaps_required'] + 1
+        'gaps_required':0 if parent_support else parent_node.data['gaps_required'] + 1,
     })
 
     # Now parse all the positions (poly-tags) and update the dictionary
@@ -202,6 +203,7 @@ def print_header(file):
             'Penalty',
             'RequiredGaps',
             'BranchSupport',
+            'Mismatch',
             'BranchSupportPercent',
             #'BranchSupportReads',
             #'NodeReadSupport',
@@ -227,6 +229,7 @@ def print_line(row, file, n):
                 f"{row.node.data['penalty']}",
                 f"{row.node.data['gaps_required']}",
                 f"{row.node.data['branch_positions_support']}/{row.node.data['branch_positions_covered']}",
+                f"{row.node.data['branch_positions_covered'] - row.node.data['branch_positions_support']}",
                 f"{branch_support:.2f}%",
                 # f"{row.node.data['branch_reads_support']}/{row.node.data['branch_reads_covered']}",
                 # f"{row.node.data['node_reads_support']}/{row.node.data['node_reads_covered']}",

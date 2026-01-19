@@ -1,3 +1,5 @@
+## v0.6 [WIP]
+- add 'Mismatch' column
 
 ## v0.5 [14.01.2026]
 ### Changes
