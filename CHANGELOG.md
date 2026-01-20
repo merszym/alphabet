@@ -1,3 +1,9 @@
+## v0.7 [WIP]
+### Changes
+- add Neanderthal haplogroups to the phylotree XML file, as published in [Andreeva et al. 2022](https://www.nature.com/articles/s41598-022-16164-9)
+- Update LICENSE to include the MIT LICENSE of the [Institute of Genetic Epidemiology, Insbruck](https://github.com/genepi/phylotree-rsrs-17/)
+- Include the `--penalty_plus` flag (default: 2) to display nodes with higher penalty than the lowest.
+
 ## v0.6 [19.01.2026]
 ### Changes
 - add `TotalMismatch` column, indicating the total number of mismatches in the branch support between covered and supported positions

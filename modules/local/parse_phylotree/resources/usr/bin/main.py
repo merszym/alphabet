@@ -57,6 +57,7 @@ pileup_path = sys.argv[2]
 prefix = sys.argv[3]
 min_support = float(sys.argv[4])
 max_gaps = int(sys.argv[5])
+show_best = int(sys.argv[6])
 
 # open XML file
 with open(xml_path) as xml_file:
@@ -239,8 +240,8 @@ with open(f"{prefix}.raw.tsv", 'w') as tree1:
 
 from anytree.search import findall, find
 
-# find the nodes that have the lowest penalty (lowest two for now)
-best_nodes = findall(node, filter_ = lambda node: any([node.data['penalty']==x for x in range(min_penalty, min_penalty+2)]))
+# find the nodes that have the lowest penalty (lowest with the provided wiggle-room)
+best_nodes = findall(node, filter_ = lambda node: any([node.data['penalty']==x for x in range(min_penalty, min_penalty+show_best)]))
 keep = []
 for _best_node in best_nodes:
     keep.extend([x.id for x in _best_node.path])

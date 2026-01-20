@@ -22,6 +22,7 @@ ALPHABET maps these sequences to the RSRS, extracts deaminated sequences (based 
 --split          DIR     Directory containing BAM-files with human mtDNA sequences
 --min_support    N       filter haplogroup branches below support of N (default: 70)
 --max_gaps       N       filter haplogroup branches with N intermediate unsupported (or missing) gaps (default: 3)
+--penalty_range  N       In the 'best' tree, include all nodes with the lowest N penalty-values (default: 2)
 ```
 
 
@@ -39,7 +40,6 @@ The alphabet output tells you which parts of the mtDNA haplogroup phylogeny are 
 
 
 `NAME.raw.tsv`
-
 Full table containing all haplogroup nodes in PhyloTree 17 (unfiltered) and the coverage stats.
 
 `NAME.best.tsv`
