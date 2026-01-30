@@ -112,25 +112,41 @@ Walk through the PhyloTree-file and create summary statistics for each haplogrou
 This repository includes the RSRS-based PhyloTree17 XML-file provided under MIT License by the [Institute of Genetic Epidemiology, Insbruck](https://github.com/genepi/phylotree-rsrs-17/blob/main/src/tree.xml)
 
 ## Neanderthal mtDNA Haplogroups
-Neanderthal mtDNA Haplogroups were added to the PhyloTree XML file. The Nomenclature and diagnostic positions follow [Andreeva et al. 2022](https://www.nature.com/articles/s41598-022-16164-9)
+Neanderthal mtDNA Haplogroups are added to the PhyloTree XML file. The Nomenclature and diagnostic positions follow [Andreeva et al. 2022](https://www.nature.com/articles/s41598-022-16164-9)
+
+I moved positions from the Neanderthal "Eve" that are shared with Sima and Denisovans into the NA'SIMA'DEN group  
 
 <pre>
-NEANDERTAL                                       Neanderthal-Eve
-|-- NA1                                          Hohenstein-Stadel (HST)
-+-- NA2
-    |-- NE                                       Early Neanderthal Clades (Altai, Denisova15)
-    +-- NA2a
-        |-- NM                                   Middle Neanderthal Clades
-        |   |-- NM1                                  Forbes Quarry
-        |   |   +-- NM1a                             Stajnija S5000
-        |   +-- NM2                                  Mezmaiskaya 3
-        +-- NL                                   Late Neanderthal Clades (Chagyrskaya, Denisova11)
-            |-- NL2                                  Les Cottes Z4-1514
-            +-- NL1                                  El Sidron, Feldhofer2
-                +-- NL1a
-                    |-- NL1a1                        Feldhofer 1
-                    +-- NL1a2
-                        |-- NL1a2a                   Vindija 33.16
-                        +-- NL1a2b                   Spy-94a
-                            +-- NL1a2b1              Goyet
+NA'SIMA'DEN                                          Neanderthal, Sima and Denisovan (difference to RSRS)
++-- NA                                               Neanderthal-Eve
+    |-- NA1                                          Hohenstein-Stadel (HST)
+    +-- NA2
+        |-- NE                                       Early Neanderthal Clades (Altai, Denisova15)
+        +-- NA2a
+            |-- NM                                   Middle Neanderthal Clades
+            |   |-- NM1                                  Forbes Quarry
+            |   |   +-- NM1a                             Stajnija S5000
+            |   +-- NM2                                  Mezmaiskaya 3
+            +-- NL                                   Late Neanderthal Clades (Chagyrskaya, Denisova11)
+                |-- NL2                                  Les Cottes Z4-1514
+                +-- NL1                                  El Sidron, Feldhofer2
+                    +-- NL1a
+                        |-- NL1a1                        Feldhofer 1
+                        +-- NL1a2
+                            |-- NL1a2a                   Vindija 33.16
+                            +-- NL1a2b                   Spy-94a
+                                +-- NL1a2b1              Goyet
+</pre>
+
+## Sima de los Huesos and Denisovan "Haplogroups"
+
+I extracted the diagnostic postitions myself, based on consensus between the specified reference genomes 
+
+<pre>
+NA'SIMA'DEN                    Neanderthal, Sima and Denisovan (difference to RSRS)
++-- SIMA'DEN                   Shared Sima and Denisova
+    |-- SIMA                   Sima de los Huesos (NC_023100.1)
+    +-- DEN                    Denisovans
+        |-- DEN3'4             Denisova 3 (NC_013993.1) and Denisova 4 (FR695060.1)
+        +-- DEN2'8             Denisova 2 (KX663333.1) and Denisova 8 (KT780370.1)
 </pre>
