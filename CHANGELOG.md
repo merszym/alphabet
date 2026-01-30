@@ -1,4 +1,9 @@
-## v0.7 [WIP]
+## v0.8 [WIP]
+### Changes
+- Add a first version of Sima de los huesos and Denisovan diagnostic positions to the tree XML
+- Add a upper hierarchie (NA'SIMA'DEN) for the common postions of Neanderthal, Sima and Denisova 
+
+## v0.7 [30.01.2026]
 ### Changes
 - add Neanderthal haplogroups to the phylotree XML file, as published in [Andreeva et al. 2022](https://www.nature.com/articles/s41598-022-16164-9)
 - Update LICENSE to include the MIT LICENSE of the [Institute of Genetic Epidemiology, Insbruck](https://github.com/genepi/phylotree-rsrs-17/)
