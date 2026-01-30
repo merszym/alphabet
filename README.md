@@ -140,7 +140,7 @@ NA'SIMA'DEN                                          Neanderthal, Sima and Denis
 
 ## Sima de los Huesos and Denisovan "Haplogroups"
 
-I extracted the diagnostic postitions myself, based on consensus between the specified reference genomes 
+Diagnostic postitions were extracted, based on sequence consensus between the specified reference genomes 
 
 <pre>
 NA'SIMA'DEN                    Neanderthal, Sima and Denisovan (difference to RSRS)
