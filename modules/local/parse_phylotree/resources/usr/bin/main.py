@@ -1,11 +1,12 @@
 #! /usr/bin/env python3
 
-from anytree import AnyNode, RenderTree, PostOrderIter, LevelOrderGroupIter
+from anytree import AnyNode, RenderTree, PostOrderIter, PreOrderIter
 from anytree.render import AsciiStyle
 from xml.dom.minidom import parse
 import sys
 import re
 import copy
+import itertools
 
 def check_position_coverage(poly, data, all_parent_positions=[]):
     def return_uncovered():
@@ -302,3 +303,74 @@ with open(f"{prefix}.{min_support}perc_{max_gaps}gaps.tsv", 'w') as tree3:
     print_header(tree3)
     for n,row in enumerate(tree3_render, 1):
         print_line(row, tree3, n)
+
+
+## Print the best node (min_penalty) stats to StdOut
+best_nodes = findall(node, filter_ = lambda node: node.data['penalty']==min_penalty)
+note = ""
+
+# Option 1: Only one best
+if len(best_nodes) == 1:
+    best_node = best_nodes[0]
+    note = "Lowest Penalty"
+
+# Option 2: Multiple: Check if all are on the same branch ---
+# A set of nodes is on one branch if one node is ancestor of all others
+else: 
+    def is_ancestor(a, b):
+        return a in b.path
+
+    # Sort by depth (shortest path = most upstream)
+    matches_sorted = sorted(best_nodes, key=lambda n: len(n.path))
+
+    #most-upstream
+    best_node = matches_sorted[0]
+
+    #check if the best_node is ancestral to all other best nodes
+    if all(is_ancestor(best_node, n) for n in matches_sorted):
+        note = "Highest Haplogroup with Lowest Penalty"
+        pass
+    
+    else:
+        # Otherwise: find Lowest Common Ancestor (LCA)
+        note = "Shared Ancestor of Haplogroups with Lowest Penalty"
+        paths = [node.path for node in matches_sorted]
+
+        # Walk level by level until paths diverge
+        lca = None
+        for nodes_at_level in itertools.zip_longest(*paths):
+            #check on each level, if the paths are all the same
+            if len(set(nodes_at_level))==1:
+                best_node = nodes_at_level[0]
+            else:
+                break
+
+# Now print the stats to sdtout
+if best_node.data['branch_positions_covered'] > 0:
+    _branch_support = best_node.data['branch_positions_support']/best_node.data['branch_positions_covered'] * 100
+else:
+    _branch_support = 0
+
+print(
+    "Phylotree", 
+    "BranchSupport", 
+    "Penalty", 
+    "SumOfGaps", 
+    "SequenceSupport",
+    "Note", 
+    sep='\t', 
+    file=sys.stdout,
+    end='\n'
+)
+
+print(
+    best_node.id,
+    f"{best_node.data['branch_positions_support']}/{best_node.data['branch_positions_covered']} ({_branch_support:.2f}%)",
+    f"{best_node.data['penalty']}",
+    f"{best_node.data['sum_of_gaps']}",
+    f"{best_node.data['branch_reads_support']}/{best_node.data['branch_reads_covered']}",
+    note,
+    sep="\t",
+    file=sys.stdout,
+    end="\n"
+)

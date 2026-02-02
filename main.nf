@@ -169,6 +169,13 @@ ch_for_phylotree = SAMTOOLS_MPILEUP_DEAM3.out.tsv.combine(ch_treexml)
 
 SUMMARIZE_PHYLOTREE(ch_for_phylotree)
 
+//Add the node-stats to the meta
+SUMMARIZE_PHYLOTREE.out.stats
+    .map{ meta, txt ->
+        def stats = txt.splitCsv(sep:'\t', header:true, limit:1)[0]
+        meta+stats
+    }
+    .set{ ch_final }
 
 //
 // 
@@ -177,7 +184,8 @@ SUMMARIZE_PHYLOTREE(ch_for_phylotree)
 //
 
 header_map = [
-'base' : ['File', 'ReadsMapped','ReadsDeduped', 'ReadsBedfiltered', 'ReadsDeam'].join('\t')
+'base' : ['File', 'ReadsMapped','ReadsDeduped', 'ReadsBedfiltered', 'ReadsDeam'].join('\t'),
+'hap' : ["Phylotree", "BranchSupport", "Penalty", "SumOfGaps", "SequenceSupport", "Note" ].join('\t')
 ]
 
 //
@@ -202,20 +210,20 @@ def getVals = {String key, meta, res=[] ->
 }
 
 // Save the output
-ch_for_phylotree
-    .map{ it[0] }
+ch_final
     .collectFile( name:"final_report.tsv",
         seed:[
             header_map['base'],
+            header_map['hap'],
         ].join('\t'), storeDir:".", newLine:true, sort:true
     ){
         [
             getVals('base', it),
+            getVals('hap', it),
         ].join('\t')
     }
     .subscribe {
         println "[alphabet]: Summary reports saved"
-}
-
+    }
 
 }

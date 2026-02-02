@@ -8,10 +8,11 @@ process SUMMARIZE_PHYLOTREE{
 
     output:
     tuple val(meta), path("*.tsv"), emit: tsv
+    tuple val(meta), path("*.txt"), emit: stats
 
     script:
     def args = task.ext.args
     """
-    main.py ${xml} ${pileup} ${meta.id} $args
+    main.py ${xml} ${pileup} ${meta.id} $args > best_node.txt
     """
 }
