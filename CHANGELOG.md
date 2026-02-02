@@ -4,6 +4,7 @@
 - Add a upper hierarchie (NA'SIMA'DEN) for the common postions of Neanderthal, Sima and Denisova 
 - Add a first version of a final report
 - Add stats and output-files for Deduped and Deaminated sequences separately
+- Remove the `min_support` and `max_gaps` flags, as they are not helpful in mixed samples (that was the original intention...)
 
 ## v0.7 [30.01.2026]
 ### Changes

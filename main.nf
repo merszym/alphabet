@@ -132,15 +132,20 @@ tsv = SAMTOOLS_MPILEUP.out.tsv
 // 4.1 and create the stats for all sequences
 //
 
-ch_for_unique_phylotree = SAMTOOLS_MPILEUP.out.tsv.combine(ch_treexml)
-SUMMARIZE_PHYLOTREE_UNIQUE(ch_for_unique_phylotree)
+ch_final_unique = Channel.empty()
 
-SUMMARIZE_PHYLOTREE_UNIQUE.out.stats
-    .map{ meta, txt ->
-        def stats = txt.splitCsv(sep:'\t', header:true, limit:1)[0]
-        meta+stats
-    }
-    .set{ ch_final_unique }
+if(params.include_deduped){
+    ch_for_unique_phylotree = SAMTOOLS_MPILEUP.out.tsv.combine(ch_treexml)
+
+    SUMMARIZE_PHYLOTREE_UNIQUE(ch_for_unique_phylotree)
+
+    SUMMARIZE_PHYLOTREE_UNIQUE.out.stats
+        .map{ meta, txt ->
+            def stats = txt.splitCsv(sep:'\t', header:true, limit:1)[0]
+            meta+stats
+        }
+        .set{ ch_final_unique }
+}
 
 //
 // 5. Get variable positions

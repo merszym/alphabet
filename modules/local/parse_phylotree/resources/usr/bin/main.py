@@ -56,9 +56,7 @@ def check_position_coverage(poly, data, all_parent_positions=[]):
 xml_path = sys.argv[1]
 pileup_path = sys.argv[2]
 prefix = sys.argv[3]
-min_support = float(sys.argv[4])
-max_gaps = int(sys.argv[5])
-show_best = int(sys.argv[6])
+show_best = int(sys.argv[4])
 
 # open XML file
 with open(xml_path) as xml_file:
@@ -261,48 +259,6 @@ with open(f"{prefix}.best.tsv", 'w') as tree2:
     print_header(tree2)
     for n,row in enumerate(tree2_render, 1):
         print_line(row, tree2, n)
-
-#Then, prune the tree, so that:
-# - nodes with less than min-support branch support are removed
-# - nodes with 0 coverage are removed
-# - nodes with penalty max-gaps or more are removed (actually, this is now mostly driven by the branch support...)
-# 
-# iterate through the tree and set all parents to None if these conditions apply
-
-for hap in PostOrderIter(node):
-    #walk from the leaves up and count the number of successful (leave) haplogroups on each node:
-    #thats what the PostOrderIter does
-    if hap.id == 'mtMRCA':
-        continue # root
-    
-    if hap.data['branch_positions_covered'] > 0:
-        branch_support = hap.data['branch_positions_support']/hap.data['branch_positions_covered'] * 100   
-        # the tree should not be filtered, if the distance to the root is larger than the max-gap...
-        # because the gaps are the intermediate missing nodes...
-        # so ignore it at the beginning of the tree
-        if hap.data['branch_positions_support'] == hap.data['node_positions_support'] and hap.data['branch_positions_covered'] == hap.data['node_positions_covered']:
-            continue
-
-    else:
-        continue
-        #
-        # if branch_positions_covered == 0, then we know that we are at the very top, but maybe not yet at the root.
-        # i.e. the very early positions (e.g. on L1'2'3'4'5'6) lack support. 
-        # We dont want the full tree to be cropped, so skip them! We basically start the tree at a lower node in this case :)
-        # 
-
-    if branch_support < min_support or hap.data['gaps_required'] > max_gaps:
-        hap.parent = None
-    
-        # if a node was filtered because of too little support, also remove unsupported intermediate nodes
-    if hap.data['node_positions_support'] == 0 and len(hap.children)==0:
-        hap.parent = None
-
-tree3_render = list(RenderTree(node, style=AsciiStyle))
-with open(f"{prefix}.{min_support}perc_{max_gaps}gaps.tsv", 'w') as tree3:    
-    print_header(tree3)
-    for n,row in enumerate(tree3_render, 1):
-        print_line(row, tree3, n)
 
 
 ## Print the best node (min_penalty) stats to StdOut

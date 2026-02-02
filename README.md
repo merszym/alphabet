@@ -19,12 +19,10 @@ ALPHABET maps these sequences to the RSRS, extracts deaminated sequences (based 
 ### flags
 
 ```
---split          DIR     Directory containing BAM-files with human mtDNA sequences
---min_support    N       filter haplogroup branches below support of N (default: 70)
---max_gaps       N       filter haplogroup branches with N intermediate unsupported (or missing) gaps (default: 3)
---penalty_range  N       In the 'best' tree, include all nodes with the lowest N penalty-values (default: 2)
+--split              DIR     Directory containing BAM-files with human mtDNA sequences
+--penalty_range      N       In the 'best' tree, include all nodes with the lowest N penalty-values (default: 2)
+--include_deduped            Set this flag to create haplogroup-statistics also for Deduped sequences (default: off) 
 ```
-
 
 ### quickstart
 
@@ -36,21 +34,17 @@ The alphabet output tells you which parts of the mtDNA haplogroup phylogeny are 
 
 1. Full table for each node in the tree (`NAME.raw.tsv`)
 2. Filtered table, showing the path to haplogroups with the lowest penalty (`NAME.best.tsv`)
-3. Filtered table, showing only nodes with >=70% branch-support AND <= 3 consequtive gaps (`NAME.70.0perc_3gaps.tsv`)
 
+`final_report.tsv`
+A report that contains summary stats for the 'best' node in the tree for all analyzed files
+
+### For each analyzed file
 
 `NAME.raw.tsv`
-Full table containing all haplogroup nodes in PhyloTree 17 (unfiltered) and the coverage stats.
+Full table containing coverage statistics for all haplogroup nodes in PhyloTree 17 (unfiltered).
 
 `NAME.best.tsv`
-Filtered table showing the path(s) through the tree with the lowest overall penalty, representing the best-supported haplogroup branches.
-
-`NAME.70.0perc_3gaps.tsv`
-This file corresponds to the default filtering thresholds and is intended for manual inspection of other supported branches.
-The table shows only haplogroup nodes that:
-    - Have ≥ 70% accumulated branch support, and
-    - Contain ≤ 3 consecutive unsupported (or missing) intermediate nodes
-
+Filtered table showing the nodes(s) in the tree with the lowest penalty (+ `penalty_range`), representing the best-supported haplogroup branch.
 
 ### Column description
 
