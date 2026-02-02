@@ -10,7 +10,10 @@ def main(bamfile, doublestranded):
     outfile = pysam.AlignmentFile(f"masked_{bamfile}", 'wb', template=infile)
 
     #main loop
+    counter = 0
+
     for read in infile:
+        counter += 1
         #alter quality scores
         qual = read.query_qualities
         seq = read.query_sequence
@@ -36,6 +39,8 @@ def main(bamfile, doublestranded):
 
     infile.close()
     outfile.close()
+
+    print(counter, file=sys.stdout, end='')
 
 if __name__ == "__main__":
     bamfile = sys.argv[1]

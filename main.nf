@@ -4,6 +4,7 @@ include { MAP_BWA            } from './modules/local/map_bwa'
 include { BEDTOOLS_INTERSECT } from './modules/local/bedtools_intersect'
 include { SAMTOOLS_FQ2BAM    } from './modules/local/samtools_fq2bam'
 include { SAMTOOLS_SORT      } from './modules/local/samtools_sort'
+include { SAMTOOLS_COUNT     } from './modules/local/samtools_count'
 include { BAM_RMDUP          } from './modules/local/bam_rmdup'
 include { SAMTOOLS_MPILEUP   } from './modules/local/samtools_mpileup'
 include { SAMTOOLS_MPILEUP_DEAM3  } from './modules/local/samtools_mpileup'
@@ -84,28 +85,39 @@ BAM_RMDUP.out.bam
 .combine(stats, by: 0)
 .map{ meta, bam, stats ->
     [
-        meta+["ReadsDeduped":stats["out"].replace(",","") as int],
+        meta+[
+            "ReadsMapped":stats["in"].replace(",","") as int, 
+            "ReadsDeduped":stats["out"].replace(",","") as int
+            ],
         bam
     ]
 }
-.set{ ch_split_for_bed }
+.set{ ch_unique_bam }
+
 ch_versions = ch_versions.mix(BAM_RMDUP.out.versions.first())
 
 //
 // 3. Remove poly-c sequences
 //
 
-ch_split_for_bed = ch_split_for_bed.combine(ch_bedfile)
+ch_unique_bam = ch_unique_bam.combine(ch_bedfile)
 
-BEDTOOLS_INTERSECT(ch_split_for_bed)
+BEDTOOLS_INTERSECT(ch_unique_bam)
 ch_versions = ch_versions.mix(BEDTOOLS_INTERSECT.out.versions.first())
 
+// get the counts
+SAMTOOLS_COUNT( BEDTOOLS_INTERSECT.out.bam )
+// add the counts to the meta
+
+ch_bedfiltered = SAMTOOLS_COUNT.out.bam.map { meta, bam, count ->
+    [ meta+[ 'ReadsBedfiltered': count as int ], bam ]
+}
 
 //
 // 4. Make pileup
 //
 
-ch_pileup = BEDTOOLS_INTERSECT.out.bam.combine(ch_reference)
+ch_pileup = ch_bedfiltered.combine(ch_reference)
 
 SAMTOOLS_MPILEUP(ch_pileup)
 
@@ -122,7 +134,7 @@ ch_versions = ch_versions.mix(GET_VARIABLE_POSITIONS.out.versions.first())
 // 6.Extract Deaminated Sequences
 //
 
-ch_for_deam3 = BEDTOOLS_INTERSECT.out.bam.combine(GET_VARIABLE_POSITIONS.out.tsv, by:0)
+ch_for_deam3 = ch_bedfiltered.combine(GET_VARIABLE_POSITIONS.out.tsv, by:0)
 
 FILTER_BAM(ch_for_deam3)
 
@@ -132,11 +144,22 @@ FILTER_BAM(ch_for_deam3)
 
 MASK_DEAMINATION(FILTER_BAM.out.bam)
 
+MASK_DEAMINATION.out.bam.map{
+    meta, bam, count ->
+    def deam = count.text.trim() as int
+    [
+        meta+['ReadsDeam':deam],
+        bam
+    ]
+}.set{
+    ch_deaminated
+}
+
 //
 // 8. Pileup the deaminated reads
 //
 
-SAMTOOLS_MPILEUP_DEAM3(MASK_DEAMINATION.out.bam)
+SAMTOOLS_MPILEUP_DEAM3(ch_deaminated)
 
 //
 // 9. Summarize the data based on the phylotree XML 
@@ -145,5 +168,54 @@ SAMTOOLS_MPILEUP_DEAM3(MASK_DEAMINATION.out.bam)
 ch_for_phylotree = SAMTOOLS_MPILEUP_DEAM3.out.tsv.combine(ch_treexml)
 
 SUMMARIZE_PHYLOTREE(ch_for_phylotree)
+
+
+//
+// 
+// 10. Summary Report
+//
+//
+
+header_map = [
+'base' : ['File', 'ReadsMapped','ReadsDeduped', 'ReadsBedfiltered', 'ReadsDeam'].join('\t')
+]
+
+//
+// if the keys in the meta dont match the desired columns, map here the meta keys to the values...
+//
+value_map = [
+    'base' : ['id', 'ReadsMapped','ReadsDeduped', 'ReadsBedfiltered', 'ReadsDeam'].join('\t'),
+]
+
+def getVals = {String key, meta, res=[] ->
+    if(value_map[key]) {
+        header = value_map[key]
+    } else {
+        header = header_map[key]
+    }
+    // then
+    header.split('\t').each{
+        def entry_key = it.trim()
+        res << meta[entry_key]
+        }
+    res.join('\t')
+}
+
+// Save the output
+ch_for_phylotree
+    .map{ it[0] }
+    .collectFile( name:"final_report.tsv",
+        seed:[
+            header_map['base'],
+        ].join('\t'), storeDir:".", newLine:true, sort:true
+    ){
+        [
+            getVals('base', it),
+        ].join('\t')
+    }
+    .subscribe {
+        println "[alphabet]: Summary reports saved"
+}
+
 
 }

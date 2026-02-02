@@ -7,10 +7,10 @@ process MASK_DEAMINATION{
     tuple val(meta), path(bam)
 
     output:
-    tuple val(meta), path("masked_${bam}"), emit: bam
+    tuple val(meta), path("masked_${bam}"), path('count.txt'), emit: bam
 
     script:
     """
-    mask_qual_scores.py ${bam}
+    mask_qual_scores.py ${bam} > count.txt
     """
 }
