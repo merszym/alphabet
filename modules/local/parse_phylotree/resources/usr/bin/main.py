@@ -320,30 +320,37 @@ else:
     def is_ancestor(a, b):
         return a in b.path
 
-    # Sort by depth (shortest path = most upstream)
-    matches_sorted = sorted(best_nodes, key=lambda n: len(n.path))
+    # if nothing was found:
+    if len(best_nodes)==0:
+        note = "No Haplogroup detected"
+        best_node = best_tree
 
-    #most-upstream
-    best_node = matches_sorted[0]
-
-    #check if the best_node is ancestral to all other best nodes
-    if all(is_ancestor(best_node, n) for n in matches_sorted):
-        note = "Highest Haplogroup with Lowest Penalty"
-        pass
-    
     else:
-        # Otherwise: find Lowest Common Ancestor (LCA)
-        note = "Shared Ancestor of Haplogroups with Lowest Penalty"
-        paths = [node.path for node in matches_sorted]
 
-        # Walk level by level until paths diverge
-        lca = None
-        for nodes_at_level in itertools.zip_longest(*paths):
-            #check on each level, if the paths are all the same
-            if len(set(nodes_at_level))==1:
-                best_node = nodes_at_level[0]
-            else:
-                break
+        # Sort by depth (shortest path = most upstream)
+        matches_sorted = sorted(best_nodes, key=lambda n: len(n.path))
+
+        #most-upstream
+        best_node = matches_sorted[0]
+
+        #check if the best_node is ancestral to all other best nodes
+        if all(is_ancestor(best_node, n) for n in matches_sorted):
+            note = "Highest Haplogroup with Lowest Penalty"
+            pass
+    
+        else:
+            # Otherwise: find Lowest Common Ancestor (LCA)
+            note = "Shared Ancestor of Haplogroups with Lowest Penalty"
+            paths = [node.path for node in matches_sorted]
+
+            # Walk level by level until paths diverge
+            lca = None
+            for nodes_at_level in itertools.zip_longest(*paths):
+                #check on each level, if the paths are all the same
+                if len(set(nodes_at_level))==1:
+                    best_node = nodes_at_level[0]
+                else:
+                    break
 
 # Now print the stats to sdtout
 if best_node.data['branch_positions_covered'] > 0:
