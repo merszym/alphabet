@@ -306,7 +306,7 @@ with open(f"{prefix}.{min_support}perc_{max_gaps}gaps.tsv", 'w') as tree3:
 
 
 ## Print the best node (min_penalty) stats to StdOut
-best_nodes = findall(node, filter_ = lambda node: node.data['penalty']==min_penalty)
+best_nodes = findall(best_tree, filter_ = lambda node: node.data['penalty']==min_penalty)
 note = ""
 
 # Option 1: Only one best

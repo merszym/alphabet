@@ -13,6 +13,6 @@ process SUMMARIZE_PHYLOTREE{
     script:
     def args = task.ext.args
     """
-    main.py ${xml} ${pileup} ${meta.id} $args > best_node.txt
+    main.py ${xml} ${pileup} ${meta.id}_${meta.Sequences} $args > best_node.txt
     """
 }

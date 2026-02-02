@@ -11,7 +11,8 @@ include { SAMTOOLS_MPILEUP_DEAM3  } from './modules/local/samtools_mpileup'
 include { GET_VARIABLE_POSITIONS  } from './modules/local/get_variable_positions'
 include { FILTER_BAM         } from './modules/local/filter_bam'
 include { MASK_DEAMINATION   } from './modules/local/mask_deamination'
-include { SUMMARIZE_PHYLOTREE } from './modules/local/parse_phylotree'
+include { SUMMARIZE_PHYLOTREE as SUMMARIZE_PHYLOTREE_DEAM   } from './modules/local/parse_phylotree'
+include { SUMMARIZE_PHYLOTREE as SUMMARIZE_PHYLOTREE_UNIQUE } from './modules/local/parse_phylotree'
 
 // load the files
 
@@ -81,13 +82,17 @@ BAM_RMDUP( SAMTOOLS_SORT.out.bam )
 stats = BAM_RMDUP.out.txt.splitCsv(sep:'\t', header:true, limit:1)
 
 //now add the stats to the meta
+//include placeholder values for later overwriting
 BAM_RMDUP.out.bam
 .combine(stats, by: 0)
 .map{ meta, bam, stats ->
     [
         meta+[
+            "Sequences":"Deduped",
             "ReadsMapped":stats["in"].replace(",","") as int, 
-            "ReadsDeduped":stats["out"].replace(",","") as int
+            "ReadsDeduped":stats["out"].replace(",","") as int,
+            "ReadsBedfiltered":"-",
+            "ReadsDeam":"-"
             ],
         bam
     ]
@@ -124,6 +129,20 @@ SAMTOOLS_MPILEUP(ch_pileup)
 tsv = SAMTOOLS_MPILEUP.out.tsv
 
 //
+// 4.1 and create the stats for all sequences
+//
+
+ch_for_unique_phylotree = SAMTOOLS_MPILEUP.out.tsv.combine(ch_treexml)
+SUMMARIZE_PHYLOTREE_UNIQUE(ch_for_unique_phylotree)
+
+SUMMARIZE_PHYLOTREE_UNIQUE.out.stats
+    .map{ meta, txt ->
+        def stats = txt.splitCsv(sep:'\t', header:true, limit:1)[0]
+        meta+stats
+    }
+    .set{ ch_final_unique }
+
+//
 // 5. Get variable positions
 //
 
@@ -148,7 +167,7 @@ MASK_DEAMINATION.out.bam.map{
     meta, bam, count ->
     def deam = count.text.trim() as int
     [
-        meta+['ReadsDeam':deam],
+        meta+['ReadsDeam':deam, "Sequences":"Deam"],
         bam
     ]
 }.set{
@@ -167,15 +186,18 @@ SAMTOOLS_MPILEUP_DEAM3(ch_deaminated)
 
 ch_for_phylotree = SAMTOOLS_MPILEUP_DEAM3.out.tsv.combine(ch_treexml)
 
-SUMMARIZE_PHYLOTREE(ch_for_phylotree)
+SUMMARIZE_PHYLOTREE_DEAM(ch_for_phylotree)
 
 //Add the node-stats to the meta
-SUMMARIZE_PHYLOTREE.out.stats
+SUMMARIZE_PHYLOTREE_DEAM.out.stats
     .map{ meta, txt ->
         def stats = txt.splitCsv(sep:'\t', header:true, limit:1)[0]
         meta+stats
     }
     .set{ ch_final }
+
+
+ch_final = ch_final.mix(ch_final_unique)
 
 //
 // 
@@ -184,7 +206,7 @@ SUMMARIZE_PHYLOTREE.out.stats
 //
 
 header_map = [
-'base' : ['File', 'ReadsMapped','ReadsDeduped', 'ReadsBedfiltered', 'ReadsDeam'].join('\t'),
+'base' : ['File', 'Sequences', 'ReadsMapped','ReadsDeduped', 'ReadsBedfiltered', 'ReadsDeam'].join('\t'),
 'hap' : ["Phylotree", "BranchSupport", "Penalty", "SumOfGaps", "SequenceSupport", "Note" ].join('\t')
 ]
 
@@ -192,7 +214,7 @@ header_map = [
 // if the keys in the meta dont match the desired columns, map here the meta keys to the values...
 //
 value_map = [
-    'base' : ['id', 'ReadsMapped','ReadsDeduped', 'ReadsBedfiltered', 'ReadsDeam'].join('\t'),
+    'base' : ['id', 'Sequences', 'ReadsMapped','ReadsDeduped', 'ReadsBedfiltered', 'ReadsDeam'].join('\t'),
 ]
 
 def getVals = {String key, meta, res=[] ->
