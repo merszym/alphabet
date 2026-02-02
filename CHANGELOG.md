@@ -2,6 +2,7 @@
 ### Changes
 - Add a first version of Sima de los huesos and Denisovan diagnostic positions to the tree XML
 - Add a upper hierarchie (NA'SIMA'DEN) for the common postions of Neanderthal, Sima and Denisova 
+- Add a first version of a final report
 
 ## v0.7 [30.01.2026]
 ### Changes
