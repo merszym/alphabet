@@ -76,6 +76,12 @@ with open(pileup_path) as pileup_file:
 
 # create the anynode tree
 # create dictionaries to be filled during parsing
+# |
+# x NODE: Position and reads
+# |
+# x NODE
+# |
+# V BRANCH (sum of nodes): Positions and reads
 raw_data = {
     'branch_reads_support':0,
     'branch_reads_covered':0,
@@ -83,14 +89,14 @@ raw_data = {
     'node_reads_covered':0,
     'branch_positions_covered': 0,
     'branch_positions_support': 0,
-    'sum_of_gaps':0,
     'node_positions_covered': 0,
     'node_positions_support': 0,
     'branch_positions': [],
     'node_positions': [], #only positions from this haplogroup node
     'node_positions_rendered': [], #node_positions, but including the read coverage statistics
+    'gaps_required':0, # how many intermediate nodes were skipped to come here 
+    'sum_of_gaps':0,
     'penalty':-1, #for branches at the leaves, update later
-    'gaps_required':0 # how many intermediate nodes were skipped to come here 
 }
 
 node = AnyNode(id='mtMRCA', parent=None, data=raw_data.copy())
@@ -175,8 +181,24 @@ min_penalty = 1000
 
 for hap in PostOrderIter(node):
     # The penalty is used to get the best supported node. The smaller, the better
-    
-    hap.data['penalty'] = hap.data['sum_of_gaps'] + (max_support - hap.data['branch_positions_support']) + (hap.data['branch_positions_covered'] - hap.data['branch_positions_support'])
+
+    branch_sequence_support = 0
+    sequence_support = 0
+
+    if hap.data['node_reads_covered'] > 0:
+        sequence_support = hap.data['node_reads_support']/hap.data['node_reads_covered'] * 100
+        
+    if hap.data['branch_reads_covered'] > 0:
+        branch_sequence_support = hap.data['branch_reads_support']/hap.data['branch_reads_covered'] * 100
+
+        if min(sequence_support, branch_sequence_support) == 0:
+            delta_penalty = 0
+        else:
+            delta = max(sequence_support, branch_sequence_support) - min(sequence_support, branch_sequence_support)
+            delta_penalty = delta // 5
+
+
+    hap.data['penalty'] = hap.data['sum_of_gaps'] + (max_support - hap.data['branch_positions_support']) + int(delta_penalty)
     
     if hap.data['penalty'] < min_penalty:
         min_penalty = hap.data['penalty']
@@ -190,24 +212,48 @@ def print_header(file):
             'Penalty',
             'RequiredGaps',
             'SumOfGaps',
-            'BranchSupport',
             'TotalMismatch',
             'DistanceToBest',
-            'BranchSupportPercent',
-            'PositionSupport',
-            'SequenceSupport'
+            'BranchPositionSupport#',
+            'BranchPositionSupport%',
+            'BranchSequenceSupport#',
+            'BranchSequenceSupport%',
+            'PositionSupport#',
+            'PositionSupport%',
+            'SequenceSupport#',
+            'SequenceSupport%',
+            'SupportDelta',
+            'Positions'
         ]
     ), file=file)
 
 def print_line(row, file, n):
+    parent = '-'
+    branch_position_support = 0
+    branch_sequence_support = 0
+    position_support = 0
+    sequence_support = 0
+    branch_support_delta = 0
+
+    if row.node.data['node_reads_covered'] > 0:
+        sequence_support = row.node.data['node_reads_support']/row.node.data['node_reads_covered'] * 100
+    
     if row.node.data['branch_positions_covered'] > 0:
-        branch_support = row.node.data['branch_positions_support']/row.node.data['branch_positions_covered'] * 100
-    else:
-        branch_support = 0
+        branch_position_support = row.node.data['branch_positions_support']/row.node.data['branch_positions_covered'] * 100
+    
+    if row.node.data['branch_reads_covered'] > 0:
+        branch_sequence_support = row.node.data['branch_reads_support']/row.node.data['branch_reads_covered'] * 100
+        try:
+            branch_support_delta = max(sequence_support, branch_sequence_support) - min(sequence_support, branch_sequence_support)
+        except:
+            branch_support_delta = 0
+
+    if row.node.data['node_positions_covered'] > 0:
+        position_support = row.node.data['node_positions_support']/row.node.data['node_positions_covered'] * 100
+    
     if row.node.parent:
         parent = row.node.parent.id
-    else:
-        parent = '-'
+    
     print('\t'.join(
             [
                 str(n),
@@ -216,11 +262,17 @@ def print_line(row, file, n):
                 f"{row.node.data['penalty']}",
                 f"{row.node.data['gaps_required']}",
                 f"{row.node.data['sum_of_gaps']}",
-                f"{row.node.data['branch_positions_support']}/{row.node.data['branch_positions_covered']}",
                 f"{row.node.data['branch_positions_covered'] - row.node.data['branch_positions_support']}",
                 f"{max_support - row.node.data['branch_positions_support']}",
-                f"{branch_support:.2f}%",
+                f"{row.node.data['branch_positions_support']}/{row.node.data['branch_positions_covered']}",
+                f"{branch_position_support:.2f}%",
+                f"{row.node.data['branch_reads_support']}/{row.node.data['branch_reads_covered']}",
+                f"{branch_sequence_support:.2f}%",
                 f"{row.node.data['node_positions_support']}/{row.node.data['node_positions_covered']}",
+                f"{position_support:.2f}%",
+                f"{row.node.data['node_reads_support']}/{row.node.data['node_reads_covered']}",
+                f"{sequence_support:.2f}%",
+                f"{branch_support_delta:.2f}%",
                 f"{'; '.join(row.node.data['node_positions_rendered'])}"
             ]
         ), file=file
