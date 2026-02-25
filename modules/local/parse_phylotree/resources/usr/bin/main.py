@@ -235,13 +235,13 @@ for hap in PostOrderIter(node):
 
     if hap.data['unique_branch_positions_covered'] > 0:
         branch_support = hap.data['unique_branch_positions_support'] / hap.data['unique_branch_positions_covered'] * 100
-        branch_support_penalty = (100 - branch_support) // 3
+        branch_support_penalty = (100 - branch_support) // 5
     
     if hap.data['node_positions_covered'] > 0:
         node_support = hap.data['node_positions_support'] / hap.data['node_positions_covered'] * 100
         node_support_penalty = (100 - node_support) // 3
 
-    inner_node_penalty = 50 - hap.data['branch_positions_support']
+    inner_node_penalty = 20 - hap.data['branch_positions_support']
     if inner_node_penalty < 0:
         inner_node_penalty = 0
 
