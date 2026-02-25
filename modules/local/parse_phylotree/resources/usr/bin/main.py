@@ -7,6 +7,7 @@ import sys
 import re
 import copy
 import itertools
+from collections import Counter
 
 def check_position_coverage(poly, data, all_parent_positions=[]):
     def return_uncovered():
@@ -47,6 +48,26 @@ def check_position_coverage(poly, data, all_parent_positions=[]):
     ##
     return perc, target, cov, is_remutation
 
+
+def get_position_weights(xml):
+    positions = []
+    with open(xml) as xml_file:
+        xml_tree = parse(xml_file)
+        for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
+            # Now parse all the positions (poly-tags) and update the dictionary
+            for xml_child in xml_haplogroup.childNodes: #child here means XML childs --> for parsing the POLYs
+                if xml_child.nodeType == xml_child.ELEMENT_NODE and xml_child.tagName == 'details':
+                # Get data for each haplogroup-defining position 
+                # Get the 'poly' elements directly under the 'details' element
+                    for xml_poly in xml_child.getElementsByTagName('poly'):
+                        # extract position from XML
+                        # poly = e.g. 1234T
+                        poly = xml_poly.firstChild.data
+                        positions.append(poly)
+    counter = Counter(positions)
+    weigths = {pos:1/counter[pos] for pos in counter.keys()}
+    return weigths
+    
 
 #
 # This is aweful spaghetti-code and I am sorry for this!!
@@ -89,8 +110,12 @@ raw_data = {
     'node_reads_covered':0,
     'branch_positions_covered': 0,
     'branch_positions_support': 0,
+    'unique_branch_positions_covered': 0,
+    'unique_branch_positions_support': 0,
     'node_positions_covered': 0,
     'node_positions_support': 0,
+    'unique_node_positions_covered': 0,
+    'unique_node_positions_support': 0,
     'branch_positions': [],
     'node_positions': [], #only positions from this haplogroup node
     'node_positions_rendered': [], #node_positions, but including the read coverage statistics
@@ -102,6 +127,8 @@ raw_data = {
 node = AnyNode(id='mtMRCA', parent=None, data=raw_data.copy())
 name_node_dict = {'mtMRCA':node}
 max_support = 0
+
+weigths = get_position_weights(xml_path)
 
 # walk through the XML and fill the anynode-tree
 for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
@@ -127,6 +154,8 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
     data.update({
         'branch_positions_covered': parent_node.data['branch_positions_covered'], # later: add node covered on top 
         'branch_positions_support': parent_node.data['branch_positions_support'], # later: add node support on top
+        'unique_branch_positions_covered': parent_node.data['unique_branch_positions_covered'], # later: add node covered on top 
+        'unique_branch_positions_support': parent_node.data['unique_branch_positions_support'], # later: add node support on top
         'branch_positions': parent_node.data['branch_positions'].copy(), # later: add node_positions on top
         'branch_reads_covered': parent_node.data['branch_reads_covered'], # later: add node reads covered on top
         'branch_reads_support': parent_node.data['branch_reads_support'], # later: add node reads support on top
@@ -145,6 +174,7 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
                 poly = xml_poly.firstChild.data
                 data['node_positions'].append(poly)
                 data['branch_positions'].append(poly)
+                poly_weight = weigths[poly] 
 
                 # now parse the positions and calculate coverage
                 perc, target, cov, mutation = check_position_coverage(poly, pileup_data, parent_node.data['branch_positions'])
@@ -160,10 +190,16 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
                 if cov > 0:
                     data['node_positions_covered'] += 1
                     data['branch_positions_covered'] += 1
-                if perc > 0: # this is here in case I want a min-percent on the positions
-                    data['node_positions_support'] += 1
-                    data['branch_positions_support'] += 1
-                    data['branch_positions_support'] += mutation
+                    if poly_weight == 1:
+                        data['unique_branch_positions_covered'] += 1
+                        data['unique_node_positions_covered'] += 1
+                if perc > 5: # this is here in case I want a min-percent on the positions
+                    data['node_positions_support'] += poly_weight
+                    data['branch_positions_support'] += poly_weight
+                    data['branch_positions_support'] += mutation * poly_weight
+                    if poly_weight == 1:
+                        data['unique_branch_positions_support'] += 1
+                        data['unique_node_positions_support'] += 1
     
     if data['node_positions_support'] == 0:
         data['sum_of_gaps'] += 1
@@ -184,6 +220,8 @@ for hap in PostOrderIter(node):
 
     branch_sequence_support = 0
     sequence_support = 0
+    delta_penalty = 0
+    branch_support_penalty = 5
 
     if hap.data['node_reads_covered'] > 0:
         sequence_support = hap.data['node_reads_support']/hap.data['node_reads_covered'] * 100
@@ -194,8 +232,16 @@ for hap in PostOrderIter(node):
         delta = max(sequence_support, branch_sequence_support) - min(sequence_support, branch_sequence_support)
         delta_penalty = delta // 3
 
+    if hap.data['unique_branch_positions_covered'] > 0:
+        branch_support = hap.data['unique_branch_positions_support'] / hap.data['unique_branch_positions_covered'] * 100
+        branch_support_penalty = (100 - branch_support) // 3
 
-    hap.data['penalty'] = hap.data['sum_of_gaps'] + (max_support - hap.data['branch_positions_support']) + int(delta_penalty)
+
+    hap.data['penalty'] = round(
+            hap.data['sum_of_gaps']*3 + 
+            int(delta_penalty)+ 
+            int(branch_support_penalty)
+        ,1)
     
     if hap.data['penalty'] < min_penalty:
         min_penalty = hap.data['penalty']
@@ -209,14 +255,16 @@ def print_header(file):
             'Penalty',
             'RequiredGaps',
             'SumOfGaps',
-            'TotalMismatch',
-            'DistanceToBest',
             'BranchPositionSupport#',
             'BranchPositionSupport%',
+            'BranchPositionSupportUnique#',
+            'BranchPositionSupportUnique%',
             'BranchSequenceSupport#',
             'BranchSequenceSupport%',
             'PositionSupport#',
             'PositionSupport%',
+            'PositionSupportUnique#',
+            'PositionSupportUnique%',
             'SequenceSupport#',
             'SequenceSupport%',
             'SupportDelta',
@@ -228,7 +276,9 @@ def print_line(row, file, n):
     parent = '-'
     branch_position_support = 0
     branch_sequence_support = 0
+    unique_branch_position_support = 0
     position_support = 0
+    unique_position_support = 0
     sequence_support = 0
     branch_support_delta = 0
 
@@ -238,6 +288,9 @@ def print_line(row, file, n):
     if row.node.data['branch_positions_covered'] > 0:
         branch_position_support = row.node.data['branch_positions_support']/row.node.data['branch_positions_covered'] * 100
     
+    if row.node.data['unique_branch_positions_covered'] > 0:
+        unique_branch_position_support = row.node.data['unique_branch_positions_support']/row.node.data['unique_branch_positions_covered'] * 100
+
     if row.node.data['branch_reads_covered'] > 0:
         branch_sequence_support = row.node.data['branch_reads_support']/row.node.data['branch_reads_covered'] * 100
         try:
@@ -248,6 +301,9 @@ def print_line(row, file, n):
     if row.node.data['node_positions_covered'] > 0:
         position_support = row.node.data['node_positions_support']/row.node.data['node_positions_covered'] * 100
     
+    if row.node.data['unique_node_positions_covered'] > 0:
+        unique_position_support = row.node.data['unique_node_positions_support']/row.node.data['unique_node_positions_covered'] * 100
+
     if row.node.parent:
         parent = row.node.parent.id
     
@@ -256,17 +312,19 @@ def print_line(row, file, n):
                 str(n),
                 parent,
                 f"{row.pre.rstrip()} {row.node.id}",
-                f"{row.node.data['penalty']}",
+                f"{row.node.data['penalty']:.1f}",
                 f"{row.node.data['gaps_required']}",
                 f"{row.node.data['sum_of_gaps']}",
-                f"{row.node.data['branch_positions_covered'] - row.node.data['branch_positions_support']}",
-                f"{max_support - row.node.data['branch_positions_support']}",
-                f"{row.node.data['branch_positions_support']}/{row.node.data['branch_positions_covered']}",
+                f"{row.node.data['branch_positions_support']:.1f}/{row.node.data['branch_positions_covered']}",
                 f"{branch_position_support:.2f}%",
+                f"{row.node.data['unique_branch_positions_support']}/{row.node.data['unique_branch_positions_covered']}",
+                f"{unique_branch_position_support:.2f}%",
                 f"{row.node.data['branch_reads_support']}/{row.node.data['branch_reads_covered']}",
                 f"{branch_sequence_support:.2f}%",
-                f"{row.node.data['node_positions_support']}/{row.node.data['node_positions_covered']}",
+                f"{row.node.data['node_positions_support']:.1f}/{row.node.data['node_positions_covered']}",
                 f"{position_support:.2f}%",
+                f"{row.node.data['unique_node_positions_support']}/{row.node.data['unique_node_positions_covered']}",
+                f"{unique_position_support:.2f}%",
                 f"{row.node.data['node_reads_support']}/{row.node.data['node_reads_covered']}",
                 f"{sequence_support:.2f}%",
                 f"{branch_support_delta:.2f}%",
@@ -289,7 +347,7 @@ with open(f"{prefix}.raw.tsv", 'w') as tree1:
 from anytree.search import findall, find
 
 # find the nodes that have the lowest penalty (lowest with the provided wiggle-room)
-best_nodes = findall(node, filter_ = lambda node: any([node.data['penalty']==x for x in range(min_penalty, min_penalty+show_best)]))
+best_nodes = findall(node, filter_ = lambda node: any([node.data['penalty']==x for x in range(int(min_penalty), int(min_penalty+show_best))]))
 keep = []
 for _best_node in best_nodes:
     keep.extend([x.id for x in _best_node.path])
