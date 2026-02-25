@@ -194,9 +194,9 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
                         data['unique_branch_positions_covered'] += 1
                         data['unique_node_positions_covered'] += 1
                 if perc > 5: # this is here in case I want a min-percent on the positions
-                    data['node_positions_support'] += poly_weight
-                    data['branch_positions_support'] += poly_weight
-                    data['branch_positions_support'] += mutation * poly_weight
+                    data['node_positions_support'] += 1
+                    data['branch_positions_support'] += 1
+                    data['branch_positions_support'] += mutation
                     if poly_weight == 1:
                         data['unique_branch_positions_support'] += 1
                         data['unique_node_positions_support'] += 1
@@ -236,11 +236,16 @@ for hap in PostOrderIter(node):
         branch_support = hap.data['unique_branch_positions_support'] / hap.data['unique_branch_positions_covered'] * 100
         branch_support_penalty = (100 - branch_support) // 3
 
+    inner_node_penalty = 50 - hap.data['branch_positions_support']
+    if inner_node_penalty < 0:
+        inner_node_penalty = 0
 
     hap.data['penalty'] = round(
             hap.data['sum_of_gaps']*3 + 
             int(delta_penalty)+ 
-            int(branch_support_penalty)
+            int(branch_support_penalty)+
+            inner_node_penalty-
+            int(hap.data['unique_branch_positions_support']>0)
         ,1)
     
     if hap.data['penalty'] < min_penalty:
@@ -315,13 +320,13 @@ def print_line(row, file, n):
                 f"{row.node.data['penalty']:.1f}",
                 f"{row.node.data['gaps_required']}",
                 f"{row.node.data['sum_of_gaps']}",
-                f"{row.node.data['branch_positions_support']:.1f}/{row.node.data['branch_positions_covered']}",
+                f"{row.node.data['branch_positions_support']}/{row.node.data['branch_positions_covered']}",
                 f"{branch_position_support:.2f}%",
                 f"{row.node.data['unique_branch_positions_support']}/{row.node.data['unique_branch_positions_covered']}",
                 f"{unique_branch_position_support:.2f}%",
                 f"{row.node.data['branch_reads_support']}/{row.node.data['branch_reads_covered']}",
                 f"{branch_sequence_support:.2f}%",
-                f"{row.node.data['node_positions_support']:.1f}/{row.node.data['node_positions_covered']}",
+                f"{row.node.data['node_positions_support']}/{row.node.data['node_positions_covered']}",
                 f"{position_support:.2f}%",
                 f"{row.node.data['unique_node_positions_support']}/{row.node.data['unique_node_positions_covered']}",
                 f"{unique_position_support:.2f}%",
