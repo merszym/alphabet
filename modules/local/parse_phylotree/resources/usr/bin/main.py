@@ -160,7 +160,7 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
                 if cov > 0:
                     data['node_positions_covered'] += 1
                     data['branch_positions_covered'] += 1
-                if perc > 10:
+                if perc > 0: # this is here in case I want a min-percent on the positions
                     data['node_positions_support'] += 1
                     data['branch_positions_support'] += 1
                     data['branch_positions_support'] += mutation
@@ -191,11 +191,8 @@ for hap in PostOrderIter(node):
     if hap.data['branch_reads_covered'] > 0:
         branch_sequence_support = hap.data['branch_reads_support']/hap.data['branch_reads_covered'] * 100
 
-        if min(sequence_support, branch_sequence_support) == 0:
-            delta_penalty = 0
-        else:
-            delta = max(sequence_support, branch_sequence_support) - min(sequence_support, branch_sequence_support)
-            delta_penalty = delta // 5
+        delta = max(sequence_support, branch_sequence_support) - min(sequence_support, branch_sequence_support)
+        delta_penalty = delta // 3
 
 
     hap.data['penalty'] = hap.data['sum_of_gaps'] + (max_support - hap.data['branch_positions_support']) + int(delta_penalty)
