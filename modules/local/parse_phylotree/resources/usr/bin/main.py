@@ -213,7 +213,7 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
     name_node_dict.update({name:tmp})   
 
 # now summarize stats on each node
-min_penalty = 1000
+min_penalty = []
 
 for hap in PostOrderIter(node):
     # The penalty is used to get the best supported node. The smaller, the better
@@ -222,6 +222,7 @@ for hap in PostOrderIter(node):
     sequence_support = 0
     delta_penalty = 0
     branch_support_penalty = 5
+    node_support_penalty = 0
 
     if hap.data['node_reads_covered'] > 0:
         sequence_support = hap.data['node_reads_support']/hap.data['node_reads_covered'] * 100
@@ -235,21 +236,25 @@ for hap in PostOrderIter(node):
     if hap.data['unique_branch_positions_covered'] > 0:
         branch_support = hap.data['unique_branch_positions_support'] / hap.data['unique_branch_positions_covered'] * 100
         branch_support_penalty = (100 - branch_support) // 3
+    
+    if hap.data['node_positions_covered'] > 0:
+        node_support = hap.data['node_positions_support'] / hap.data['node_positions_covered'] * 100
+        node_support_penalty = (100 - node_support) // 3
 
     inner_node_penalty = 50 - hap.data['branch_positions_support']
     if inner_node_penalty < 0:
         inner_node_penalty = 0
 
-    hap.data['penalty'] = round(
+    hap.data['penalty'] = (
             hap.data['sum_of_gaps']*3 + 
             int(delta_penalty)+ 
             int(branch_support_penalty)+
+            int(node_support_penalty)+
             inner_node_penalty-
             int(hap.data['unique_branch_positions_support']>0)
-        ,1)
+        )
     
-    if hap.data['penalty'] < min_penalty:
-        min_penalty = hap.data['penalty']
+    min_penalty.append(hap.data['penalty'])
 
 def print_header(file):
     print('\t'.join(
@@ -351,8 +356,10 @@ with open(f"{prefix}.raw.tsv", 'w') as tree1:
 
 from anytree.search import findall, find
 
+sorted_penalties = sorted(list(set(min_penalty)))
+
 # find the nodes that have the lowest penalty (lowest with the provided wiggle-room)
-best_nodes = findall(node, filter_ = lambda node: any([node.data['penalty']==x for x in range(int(min_penalty), int(min_penalty+show_best))]))
+best_nodes = findall(node, filter_ = lambda node: any([node.data['penalty'] in sorted_penalties[:show_best]]))
 keep = []
 for _best_node in best_nodes:
     keep.extend([x.id for x in _best_node.path])
