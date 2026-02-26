@@ -2,12 +2,21 @@
 
 from anytree import AnyNode, RenderTree, PostOrderIter, PreOrderIter
 from anytree.render import AsciiStyle
+from anytree.search import findall, find
 from xml.dom.minidom import parse
 import sys
 import re
 import copy
 import itertools
 from collections import Counter
+
+# Penalty formula constants
+MIN_POSITION_SUPPORT_PERCENT = 5   # minimum allele frequency to count a position as supported
+INNER_NODE_BONUS_THRESHOLD = 20    # branch positions needed before inner-node penalty drops to 0
+GAP_PENALTY_MULTIPLIER = 3         # weight applied to sum_of_gaps in the penalty
+DELTA_PENALTY_DIVISOR = 3          # divisor for sequence/branch support delta penalty
+BRANCH_SUPPORT_PENALTY_DIVISOR = 5 # divisor for branch position support penalty
+NODE_SUPPORT_PENALTY_DIVISOR = 3   # divisor for node position support penalty
 
 def check_position_coverage(poly, data, all_parent_positions=[]):
     def return_uncovered():
@@ -49,24 +58,22 @@ def check_position_coverage(poly, data, all_parent_positions=[]):
     return perc, target, cov, is_remutation
 
 
-def get_position_weights(xml):
+def get_position_weights(xml_tree):
     positions = []
-    with open(xml) as xml_file:
-        xml_tree = parse(xml_file)
-        for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
-            # Now parse all the positions (poly-tags) and update the dictionary
-            for xml_child in xml_haplogroup.childNodes: #child here means XML childs --> for parsing the POLYs
-                if xml_child.nodeType == xml_child.ELEMENT_NODE and xml_child.tagName == 'details':
-                # Get data for each haplogroup-defining position 
-                # Get the 'poly' elements directly under the 'details' element
-                    for xml_poly in xml_child.getElementsByTagName('poly'):
-                        # extract position from XML
-                        # poly = e.g. 1234T
-                        poly = xml_poly.firstChild.data
-                        positions.append(poly)
+    for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
+        # Now parse all the positions (poly-tags) and update the dictionary
+        for xml_child in xml_haplogroup.childNodes: #child here means XML childs --> for parsing the POLYs
+            if xml_child.nodeType == xml_child.ELEMENT_NODE and xml_child.tagName == 'details':
+            # Get data for each haplogroup-defining position 
+            # Get the 'poly' elements directly under the 'details' element
+                for xml_poly in xml_child.getElementsByTagName('poly'):
+                    # extract position from XML
+                    # poly = e.g. 1234T
+                    poly = xml_poly.firstChild.data
+                    positions.append(poly)
     counter = Counter(positions)
-    weigths = {pos:1/counter[pos] for pos in counter.keys()}
-    return weigths
+    weights = {pos:1/counter[pos] for pos in counter.keys()}
+    return weights
     
 
 #
@@ -82,6 +89,8 @@ show_best = int(sys.argv[4])
 # open XML file
 with open(xml_path) as xml_file:
     xml_tree = parse(xml_file)
+
+weights = get_position_weights(xml_tree)
 
 # open pileup file
 pileup_data = {}
@@ -128,8 +137,6 @@ node = AnyNode(id='mtMRCA', parent=None, data=raw_data.copy())
 name_node_dict = {'mtMRCA':node}
 max_support = 0
 
-weigths = get_position_weights(xml_path)
-
 # walk through the XML and fill the anynode-tree
 for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
     # thats the haplogroup label
@@ -174,7 +181,7 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
                 poly = xml_poly.firstChild.data
                 data['node_positions'].append(poly)
                 data['branch_positions'].append(poly)
-                poly_weight = weigths[poly] 
+                poly_weight = weights[poly]
 
                 # now parse the positions and calculate coverage
                 perc, target, cov, mutation = check_position_coverage(poly, pileup_data, parent_node.data['branch_positions'])
@@ -193,7 +200,7 @@ for xml_haplogroup in xml_tree.getElementsByTagName('haplogroup'):
                     if poly_weight == 1:
                         data['unique_branch_positions_covered'] += 1
                         data['unique_node_positions_covered'] += 1
-                if perc > 5: # this is here in case I want a min-percent on the positions
+                if perc > MIN_POSITION_SUPPORT_PERCENT:
                     data['node_positions_support'] += 1
                     data['branch_positions_support'] += 1
                     data['branch_positions_support'] += mutation
@@ -231,27 +238,25 @@ for hap in PostOrderIter(node):
         branch_sequence_support = hap.data['branch_reads_support']/hap.data['branch_reads_covered'] * 100
 
         delta = max(sequence_support, branch_sequence_support) - min(sequence_support, branch_sequence_support)
-        delta_penalty = delta // 3
+        delta_penalty = delta // DELTA_PENALTY_DIVISOR
 
     if hap.data['unique_branch_positions_covered'] > 0:
         branch_support = hap.data['unique_branch_positions_support'] / hap.data['unique_branch_positions_covered'] * 100
-        branch_support_penalty = (100 - branch_support) // 5
+        branch_support_penalty = (100 - branch_support) // BRANCH_SUPPORT_PENALTY_DIVISOR
     
     if hap.data['node_positions_covered'] > 0:
         node_support = hap.data['node_positions_support'] / hap.data['node_positions_covered'] * 100
-        node_support_penalty = (100 - node_support) // 3
+        node_support_penalty = (100 - node_support) // NODE_SUPPORT_PENALTY_DIVISOR
 
-    inner_node_penalty = 20 - hap.data['branch_positions_support']
-    if inner_node_penalty < 0:
-        inner_node_penalty = 0
+    inner_node_penalty = max(0, INNER_NODE_BONUS_THRESHOLD - hap.data['branch_positions_support'])
 
     hap.data['penalty'] = (
-            hap.data['sum_of_gaps']*3 + 
-            int(delta_penalty)+ 
-            int(branch_support_penalty)+
-            int(node_support_penalty)+
-            inner_node_penalty-
-            int(hap.data['unique_branch_positions_support']>0)
+            hap.data['sum_of_gaps'] * GAP_PENALTY_MULTIPLIER +
+            int(delta_penalty) +
+            int(branch_support_penalty) +
+            int(node_support_penalty) +
+            inner_node_penalty -
+            int(hap.data['unique_branch_positions_support'] > 0)
         )
     
     min_penalty.append(hap.data['penalty'])
@@ -305,7 +310,7 @@ def print_line(row, file, n):
         branch_sequence_support = row.node.data['branch_reads_support']/row.node.data['branch_reads_covered'] * 100
         try:
             branch_support_delta = max(sequence_support, branch_sequence_support) - min(sequence_support, branch_sequence_support)
-        except:
+        except Exception:
             branch_support_delta = 0
 
     if row.node.data['node_positions_covered'] > 0:
@@ -353,9 +358,6 @@ with open(f"{prefix}.raw.tsv", 'w') as tree1:
         print_line(row, tree1, n)
 
 # print the best tree (output all nodes with the two lowest penalties)
-
-from anytree.search import findall, find
-
 sorted_penalties = sorted(list(set(min_penalty)))
 
 # find the nodes that have the lowest penalty (lowest with the provided wiggle-room)
@@ -381,7 +383,7 @@ with open(f"{prefix}.best.tsv", 'w') as tree2:
 
 
 ## Print the best node (min_penalty) stats to StdOut
-best_nodes = findall(best_tree, filter_ = lambda node: node.data['penalty']==min_penalty)
+best_nodes = findall(best_tree, filter_ = lambda node: node.data['penalty'] == min(min_penalty))
 note = ""
 
 # Option 1: Only one best
@@ -419,7 +421,6 @@ else:
             paths = [node.path for node in matches_sorted]
 
             # Walk level by level until paths diverge
-            lca = None
             for nodes_at_level in itertools.zip_longest(*paths):
                 #check on each level, if the paths are all the same
                 if len(set(nodes_at_level))==1:
