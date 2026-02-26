@@ -1,8 +1,8 @@
 #! /usr/bin/env python3
 
-from anytree import AnyNode, RenderTree, PostOrderIter, PreOrderIter
+from anytree import AnyNode, RenderTree, PostOrderIter
 from anytree.render import AsciiStyle
-from anytree.search import findall, find
+from anytree.search import findall
 from xml.dom.minidom import parse
 import sys
 import re
@@ -11,12 +11,8 @@ import itertools
 from collections import Counter
 
 # Penalty formula constants
-MIN_POSITION_SUPPORT_PERCENT = (
-    5  # minimum allele frequency to count a position as supported
-)
-INNER_NODE_BONUS_THRESHOLD = (
-    20  # branch positions needed before inner-node penalty drops to 0
-)
+MIN_POSITION_SUPPORT_PERCENT = 5
+INNER_NODE_BONUS_THRESHOLD = 20
 GAP_PENALTY_MULTIPLIER = 3  # weight applied to sum_of_gaps in the penalty
 DELTA_PENALTY_DIVISOR = 3  # divisor for sequence/branch support delta penalty
 BRANCH_SUPPORT_PENALTY_DIVISOR = 5  # divisor for branch position support penalty
@@ -56,10 +52,7 @@ def check_position_coverage(poly, data, all_parent_positions=[]):
 
     except KeyError:
         return return_uncovered()
-    ##
-    ## compare the poly with the mpileup_data to return coverage
-    ##
-    ##
+
     return perc, target, cov, is_remutation
 
 
@@ -141,11 +134,17 @@ raw_data = {
     "gaps_required": 0,  # how many intermediate nodes were skipped to come here
     "sum_of_gaps": 0,
     "penalty": -1,  # for branches at the leaves, update later
+    "pct_branch_position_support": 0.0,
+    "pct_unique_branch_position_support": 0.0,
+    "pct_branch_sequence_support": 0.0,
+    "pct_node_position_support": 0.0,
+    "pct_unique_node_position_support": 0.0,
+    "pct_node_sequence_support": 0.0,
+    "pct_branch_support_delta": 0.0,
 }
 
 node = AnyNode(id="mtMRCA", parent=None, data=raw_data.copy())
 name_node_dict = {"mtMRCA": node}
-max_support = 0
 
 # walk through the XML and fill the anynode-tree
 for xml_haplogroup in xml_tree.getElementsByTagName("haplogroup"):
@@ -248,9 +247,6 @@ for xml_haplogroup in xml_tree.getElementsByTagName("haplogroup"):
     if data["node_positions_support"] == 0:
         data["sum_of_gaps"] += 1
 
-    if data["branch_positions_support"] > max_support:
-        max_support = data["branch_positions_support"]
-
     # add node to the tree
     tmp = AnyNode(id=name, parent=parent_node, data=data)
     name_node_dict.update({name: tmp})
@@ -259,46 +255,62 @@ for xml_haplogroup in xml_tree.getElementsByTagName("haplogroup"):
 min_penalty = []
 
 for hap in PostOrderIter(node):
-    # The penalty is used to get the best supported node. The smaller, the better
+    hap.data["pct_node_sequence_support"] = (
+        hap.data["node_reads_support"] / hap.data["node_reads_covered"] * 100
+        if hap.data["node_reads_covered"] > 0
+        else 0.0
+    )
+    hap.data["pct_branch_sequence_support"] = (
+        hap.data["branch_reads_support"] / hap.data["branch_reads_covered"] * 100
+        if hap.data["branch_reads_covered"] > 0
+        else 0.0
+    )
+    hap.data["pct_branch_position_support"] = (
+        hap.data["branch_positions_support"]
+        / hap.data["branch_positions_covered"]
+        * 100
+        if hap.data["branch_positions_covered"] > 0
+        else 0.0
+    )
+    hap.data["pct_unique_branch_position_support"] = (
+        hap.data["unique_branch_positions_support"]
+        / hap.data["unique_branch_positions_covered"]
+        * 100
+        if hap.data["unique_branch_positions_covered"] > 0
+        else 0.0
+    )
+    hap.data["pct_node_position_support"] = (
+        hap.data["node_positions_support"] / hap.data["node_positions_covered"] * 100
+        if hap.data["node_positions_covered"] > 0
+        else 0.0
+    )
+    hap.data["pct_unique_node_position_support"] = (
+        hap.data["unique_node_positions_support"]
+        / hap.data["unique_node_positions_covered"]
+        * 100
+        if hap.data["unique_node_positions_covered"] > 0
+        else 0.0
+    )
+    hap.data["pct_branch_support_delta"] = abs(
+        hap.data["pct_node_sequence_support"] - hap.data["pct_branch_sequence_support"]
+    )
 
-    branch_sequence_support = 0
-    sequence_support = 0
-    delta_penalty = 0
-    branch_support_penalty = 5
-    node_support_penalty = 0
-
-    if hap.data["node_reads_covered"] > 0:
-        sequence_support = (
-            hap.data["node_reads_support"] / hap.data["node_reads_covered"] * 100
-        )
-
-    if hap.data["branch_reads_covered"] > 0:
-        branch_sequence_support = (
-            hap.data["branch_reads_support"] / hap.data["branch_reads_covered"] * 100
-        )
-
-        delta = max(sequence_support, branch_sequence_support) - min(
-            sequence_support, branch_sequence_support
-        )
-        delta_penalty = delta // DELTA_PENALTY_DIVISOR
+    # --- compute penalty terms from the stored percentages ---
+    delta_penalty = hap.data["pct_branch_support_delta"] // DELTA_PENALTY_DIVISOR
 
     if hap.data["unique_branch_positions_covered"] > 0:
-        branch_support = (
-            hap.data["unique_branch_positions_support"]
-            / hap.data["unique_branch_positions_covered"]
-            * 100
-        )
         branch_support_penalty = (
-            100 - branch_support
+            100 - hap.data["pct_unique_branch_position_support"]
         ) // BRANCH_SUPPORT_PENALTY_DIVISOR
+    else:
+        branch_support_penalty = 5
 
     if hap.data["node_positions_covered"] > 0:
-        node_support = (
-            hap.data["node_positions_support"]
-            / hap.data["node_positions_covered"]
-            * 100
-        )
-        node_support_penalty = (100 - node_support) // NODE_SUPPORT_PENALTY_DIVISOR
+        node_support_penalty = (
+            100 - hap.data["pct_node_position_support"]
+        ) // NODE_SUPPORT_PENALTY_DIVISOR
+    else:
+        node_support_penalty = 0
 
     inner_node_penalty = max(
         0, INNER_NODE_BONUS_THRESHOLD - hap.data["branch_positions_support"]
@@ -347,89 +359,31 @@ def print_header(file):
 
 
 def print_line(row, file, n):
-    parent = "-"
-    branch_position_support = 0
-    branch_sequence_support = 0
-    unique_branch_position_support = 0
-    position_support = 0
-    unique_position_support = 0
-    sequence_support = 0
-    branch_support_delta = 0
-
-    if row.node.data["node_reads_covered"] > 0:
-        sequence_support = (
-            row.node.data["node_reads_support"]
-            / row.node.data["node_reads_covered"]
-            * 100
-        )
-
-    if row.node.data["branch_positions_covered"] > 0:
-        branch_position_support = (
-            row.node.data["branch_positions_support"]
-            / row.node.data["branch_positions_covered"]
-            * 100
-        )
-
-    if row.node.data["unique_branch_positions_covered"] > 0:
-        unique_branch_position_support = (
-            row.node.data["unique_branch_positions_support"]
-            / row.node.data["unique_branch_positions_covered"]
-            * 100
-        )
-
-    if row.node.data["branch_reads_covered"] > 0:
-        branch_sequence_support = (
-            row.node.data["branch_reads_support"]
-            / row.node.data["branch_reads_covered"]
-            * 100
-        )
-        try:
-            branch_support_delta = max(sequence_support, branch_sequence_support) - min(
-                sequence_support, branch_sequence_support
-            )
-        except Exception:
-            branch_support_delta = 0
-
-    if row.node.data["node_positions_covered"] > 0:
-        position_support = (
-            row.node.data["node_positions_support"]
-            / row.node.data["node_positions_covered"]
-            * 100
-        )
-
-    if row.node.data["unique_node_positions_covered"] > 0:
-        unique_position_support = (
-            row.node.data["unique_node_positions_support"]
-            / row.node.data["unique_node_positions_covered"]
-            * 100
-        )
-
-    if row.node.parent:
-        parent = row.node.parent.id
-
+    d = row.node.data
+    parent = row.node.parent.id if row.node.parent else "-"
     print(
         "\t".join(
             [
                 str(n),
                 parent,
                 f"{row.pre.rstrip()} {row.node.id}",
-                f"{row.node.data['penalty']:.1f}",
-                f"{row.node.data['gaps_required']}",
-                f"{row.node.data['sum_of_gaps']}",
-                f"{row.node.data['branch_positions_support']}/{row.node.data['branch_positions_covered']}",
-                f"{branch_position_support:.2f}%",
-                f"{row.node.data['unique_branch_positions_support']}/{row.node.data['unique_branch_positions_covered']}",
-                f"{unique_branch_position_support:.2f}%",
-                f"{row.node.data['branch_reads_support']}/{row.node.data['branch_reads_covered']}",
-                f"{branch_sequence_support:.2f}%",
-                f"{row.node.data['node_positions_support']}/{row.node.data['node_positions_covered']}",
-                f"{position_support:.2f}%",
-                f"{row.node.data['unique_node_positions_support']}/{row.node.data['unique_node_positions_covered']}",
-                f"{unique_position_support:.2f}%",
-                f"{row.node.data['node_reads_support']}/{row.node.data['node_reads_covered']}",
-                f"{sequence_support:.2f}%",
-                f"{branch_support_delta:.2f}%",
-                f"{'; '.join(row.node.data['node_positions_rendered'])}",
+                f"{d['penalty']}",
+                f"{d['gaps_required']}",
+                f"{d['sum_of_gaps']}",
+                f"{d['branch_positions_support']}/{d['branch_positions_covered']}",
+                f"{d['pct_branch_position_support']:.2f}%",
+                f"{d['unique_branch_positions_support']}/{d['unique_branch_positions_covered']}",
+                f"{d['pct_unique_branch_position_support']:.2f}%",
+                f"{d['branch_reads_support']}/{d['branch_reads_covered']}",
+                f"{d['pct_branch_sequence_support']:.2f}%",
+                f"{d['node_positions_support']}/{d['node_positions_covered']}",
+                f"{d['pct_node_position_support']:.2f}%",
+                f"{d['unique_node_positions_support']}/{d['unique_node_positions_covered']}",
+                f"{d['pct_unique_node_position_support']:.2f}%",
+                f"{d['node_reads_support']}/{d['node_reads_covered']}",
+                f"{d['pct_node_sequence_support']:.2f}%",
+                f"{d['pct_branch_support_delta']:.2f}%",
+                f"{'; '.join(d['node_positions_rendered'])}",
             ]
         ),
         file=file,
@@ -451,7 +405,7 @@ sorted_penalties = sorted(list(set(min_penalty)))
 # find the nodes that have the lowest penalty (lowest with the provided wiggle-room)
 best_nodes = findall(
     node,
-    filter_=lambda node: any([node.data["penalty"] in sorted_penalties[:show_best]]),
+    filter_=lambda node: node.data["penalty"] in sorted_penalties[:show_best],
 )
 keep = []
 for _best_node in best_nodes:
@@ -506,7 +460,6 @@ else:
         # check if the best_node is ancestral to all other best nodes
         if all(is_ancestor(best_node, n) for n in matches_sorted):
             note = "Highest Haplogroup with Lowest Penalty"
-            pass
 
         else:
             # Otherwise: find Lowest Common Ancestor (LCA)
@@ -522,15 +475,6 @@ else:
                     break
 
 # Now print the stats to sdtout
-if best_node.data["branch_positions_covered"] > 0:
-    _branch_support = (
-        best_node.data["branch_positions_support"]
-        / best_node.data["branch_positions_covered"]
-        * 100
-    )
-else:
-    _branch_support = 0
-
 print(
     "Phylotree",
     "BranchSupport",
@@ -545,10 +489,10 @@ print(
 
 print(
     best_node.id,
-    f"{best_node.data['branch_positions_support']}/{best_node.data['branch_positions_covered']} ({_branch_support:.2f}%)",
+    f"{best_node.data['branch_positions_support']}/{best_node.data['branch_positions_covered']} ({best_node.data['pct_branch_position_support']:.2f}%)",
     f"{best_node.data['penalty']}",
     f"{best_node.data['sum_of_gaps']}",
-    f"{best_node.data['branch_reads_support']}/{best_node.data['branch_reads_covered']}",
+    f"{best_node.data['branch_reads_support']}/{best_node.data['branch_reads_covered']} ({best_node.data['pct_branch_sequence_support']:.2f}%)",
     note,
     sep="\t",
     file=sys.stdout,
