@@ -143,8 +143,8 @@ raw_data = {
     "pct_branch_support_delta": 0.0,
 }
 
-node = AnyNode(id="mtMRCA", parent=None, data=raw_data.copy())
-name_node_dict = {"mtMRCA": node}
+node = AnyNode(id="RSRS", parent=None, data=raw_data.copy())
+name_node_dict = {"RSRS": node}
 
 # walk through the XML and fill the anynode-tree
 for xml_haplogroup in xml_tree.getElementsByTagName("haplogroup"):
