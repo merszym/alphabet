@@ -1,3 +1,8 @@
+## v0.9 [WIP]
+### Changes
+- Improved calculation of penalty scores (simdata) 
+- Separate the creation of summary stats and the filtering to the best tree (preparation for later) 
+
 ## v0.8 [02.02.2026]
 ### Changes
 - Add a first version of Sima de los huesos and Denisovan diagnostic positions to the tree XML
