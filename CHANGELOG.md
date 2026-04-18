@@ -1,6 +1,6 @@
 ## v0.9 [WIP]
 ### Changes
-- Improved calculation of penalty scores (simdata) 
+- Improved calculation of penalty scores (based on simulated data) 
 - Separate the creation of summary stats and the filtering to the best tree (preparation for later) 
 
 ## v0.8 [02.02.2026]

@@ -13,6 +13,9 @@ from collections import Counter
 # Penalty formula constants
 MIN_POSITION_SUPPORT = 10
 GAP_PENALTY_MULTIPLIER = 15  # weight applied to sum_of_gaps/position_count in the penalty
+DELTA_MODIFIER = 0.1
+SUPPORT_DIV_WEIGHT = 0.2
+DISTANCE_POSITION_DIVIDER = 500
 
 
 def check_position_coverage(poly, data, all_parent_positions=[]):
@@ -318,9 +321,9 @@ for hap in PostOrderIter(node):
 
     hap.data["penalty"] = (
         _gap_position_proportion * GAP_PENALTY_MULTIPLIER
-        + (100-hap.data['pct_branch_position_support']) / 10
-        + hap.data['pct_branch_support_delta'] / 20 
-        - (hap.data['distance_to_root']*(hap.data['branch_positions_covered'] / 500 ))
+        + (100-hap.data['pct_branch_position_support']) * SUPPORT_DIV_WEIGHT
+        + hap.data['pct_branch_support_delta'] * DELTA_MODIFIER
+        - (hap.data['distance_to_root']*(hap.data['branch_positions_covered'] / DISTANCE_POSITION_DIVIDER ))
     )
 
 
