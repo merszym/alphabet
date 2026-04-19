@@ -2,6 +2,8 @@
 ### Changes
 - Improved calculation of penalty scores (based on simulated data) 
 - Separate the creation of summary stats and the filtering to the best tree (preparation for later) 
+- Add node RSRS'NA'SIMA'DEN to account for shared positions between Neandertals and the RSRS
+- Update output tables
 
 ## v0.8 [02.02.2026]
 ### Changes

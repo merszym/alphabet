@@ -20,7 +20,6 @@ ALPHABET maps these sequences to the RSRS, extracts deaminated sequences (based 
 
 ```
 --split              DIR     Directory containing BAM-files with human mtDNA sequences
---show_best          N       In the 'best' tree, include all nodes with the lowest N penalty-values (default: 5)
 --include_deduped            Set this flag to create haplogroup-statistics also for Deduped sequences (default: off) 
 ```
 
@@ -44,7 +43,7 @@ A report that contains summary stats for the 'best' node in the tree for all ana
 Full table containing coverage statistics for all haplogroup nodes in PhyloTree 17 (unfiltered).
 
 `NAME.best.tsv`
-Filtered table showing the nodes(s) in the tree with the lowest penalty (+ `show_best`), representing the best-supported haplogroup branch.
+Filtered table showing the nodes(s) in the tree with the lowest penalty, representing the best-supported haplogroup branch.
 
 ### Column description
 

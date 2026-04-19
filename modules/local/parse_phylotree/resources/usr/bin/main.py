@@ -86,7 +86,6 @@ def get_position_weights(xml_tree):
 xml_path = sys.argv[1]
 pileup_path = sys.argv[2]
 prefix = sys.argv[3]
-show_best = int(sys.argv[4])
 
 # open XML file
 with open(xml_path) as xml_file:

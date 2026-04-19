@@ -1,5 +1,5 @@
 process SUMMARIZE_PHYLOTREE{
-    container (workflow.containerEngine ? "merszym/anytree:nextflow" : null)
+    container (workflow.containerEngine ? "merszym/anytree:v2.12" : null)
     tag "${meta.id}"
     label 'local'
 
@@ -12,6 +12,8 @@ process SUMMARIZE_PHYLOTREE{
     script:
     def args = task.ext.args
     """
-    main.py ${xml} ${pileup} ${meta.id}_${meta.Sequences} $args 
+    main.py ${xml} ${pileup} ${meta.id}_${meta.Sequences} $args
+    subset_best.py ${meta.id}_${meta.Sequences}.raw.tsv
+
     """
 }
