@@ -50,8 +50,9 @@ def update_table(df):
 
 
 def extract_best(df):
-    _quantile5 = df["Penalty"].quantile(0.05)
-    _filter = df[df["Penalty"] < _quantile5].copy()
+    _percentile5 = (df["Penalty"].max() / 100) * 5
+
+    _filter = update_table(df[df["Penalty"] < _percentile5].copy())
 
     # now get the penalty values
     _p = _filter["Penalty"]
@@ -93,9 +94,9 @@ output_tsv = raw_tsv.name.replace(".raw.tsv", ".best.tsv")
 
 df = pd.read_csv(raw_tsv, sep="\t", keep_default_na=False)
 
-filtered = update_table(df)
+#filtered = update_table(df)
 
-best = extract_best(filtered)
+best = extract_best(df)
 
 #
 # 2. Subset the raw TSV to contain the full path (update the PhyloTree relationship)

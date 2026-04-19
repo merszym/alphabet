@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-from anytree import AnyNode, RenderTree, PostOrderIter
+from anytree import AnyNode, RenderTree, PostOrderIter, PreOrderIter
 from anytree.render import AsciiStyle
 from anytree.search import findall
 from xml.dom.minidom import parse
@@ -317,13 +317,20 @@ for hap in PostOrderIter(node):
     
      ### Support-Delta
     
-
     hap.data["penalty"] = (
         _gap_position_proportion * GAP_PENALTY_MULTIPLIER
         + (100-hap.data['pct_branch_position_support']) * SUPPORT_DIV_WEIGHT
         + hap.data['pct_branch_support_delta'] * DELTA_MODIFIER
         - (hap.data['distance_to_root']*(hap.data['branch_positions_covered'] / DISTANCE_POSITION_DIVIDER ))
     )
+
+
+#Test: update the penalty to penalize high penalty values upstream
+for hap in PreOrderIter(node):
+    if hap==node:
+        continue
+    hap.data['penalty'] += (hap.parent.data['penalty'] * 0.1)
+
 
 
 def print_header(file):
