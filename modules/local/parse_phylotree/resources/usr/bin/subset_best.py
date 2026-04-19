@@ -94,8 +94,6 @@ output_tsv = raw_tsv.name.replace(".raw.tsv", ".best.tsv")
 
 df = pd.read_csv(raw_tsv, sep="\t", keep_default_na=False)
 
-#filtered = update_table(df)
-
 best = extract_best(df)
 
 #
@@ -128,6 +126,18 @@ phylotree_map = {
     for row in RenderTree(node, style=AsciiStyle)
 }
 subset_df["PhyloTree"] = subset_df["Haplogroup"].str.strip().map(phylotree_map)
+
+# add the support value for downstream filtering
+_p = best['Penalty']
+
+subset_df.insert(
+        subset_df.columns.get_loc("Penalty"),
+        "Support",
+        round((_p.max() - subset_df["Penalty"]) / (_p.max() - _p.min()),2)
+    )
+subset_df["Support"] = subset_df["Support"].fillna(
+    1
+)  # if max and min are the same (one line remaining)
 
 subset_df.to_csv(output_tsv, sep="\t", index=False)
 
