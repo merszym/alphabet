@@ -76,6 +76,8 @@ def get_full_path(node, haplogroups):
 
     for _hap in haplogroups:
         _node = find(node, lambda x: x.id == _hap)
+        if not _node:
+            continue
         _path = [x.id for x in _node.iter_path_reverse()][::-1]
         full_path_nodes.extend([x for x in _path if x not in full_path_nodes])
 
