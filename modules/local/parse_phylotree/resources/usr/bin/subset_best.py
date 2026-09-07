@@ -12,14 +12,14 @@ def get_tree(df):
     """
     quickly reconstruct the tree from the dataframe
     """
-    node = AnyNode(id="RSRS", parent=None)
+    node = AnyNode(id="Start", parent=None)
 
-    name_node_dict = {"RSRS": node}
+    name_node_dict = {"Start": node}
 
     for _, _row in df.iterrows():
         # thats the haplogroup label
         _name = _row["Haplogroup"].strip()
-        if _name == "RSRS":
+        if _name == "Start":
             continue
 
         _parent = _row["Parent"].strip()

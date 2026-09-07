@@ -150,8 +150,8 @@ raw_data = {
 }
 
 # start of node-creation
-node = AnyNode(id="RSRS", parent=None, data=raw_data.copy())
-name_node_dict = {"RSRS": node}
+node = AnyNode(id="Start", parent=None, data=raw_data.copy())
+name_node_dict = {"Start": node}
 
 # walk through the XML and fill the anynode-tree on the fly
 for _xml_haplogroup in xml_tree.getElementsByTagName("haplogroup"):
